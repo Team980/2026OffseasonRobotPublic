@@ -24,7 +24,6 @@ import frc.robot.subsystems.Hood;
 import frc.robot.subsystems.Intake;
 import frc.robot.subsystems.Limelight;
 import frc.robot.subsystems.Shooter;
-import frc.robot.subsystems.OneShooter;
 import frc.robot.subsystems.Swerve;
 
 public final class AutoRoutines {
@@ -79,52 +78,52 @@ public final class AutoRoutines {
         return autoChooser.selectedCommand();
     }
     //TODO: Recreate autoroutine to remove auto rountine
-    private AutoRoutine outpostAndDepotRoutine() {
-        final AutoRoutine routine = autoFactory.newRoutine("Outpost and Depot");
-        final AutoTrajectory startToOutpost = OutpostAndDepotTrajectory$0.asAutoTraj(routine);
-        final AutoTrajectory outpostToDepot = OutpostAndDepotTrajectory$1.asAutoTraj(routine);
-        final AutoTrajectory depotToShootingPose = OutpostAndDepotTrajectory$2.asAutoTraj(routine);
-        final AutoTrajectory shootingPoseToTower = OutpostAndDepotTrajectory$3.asAutoTraj(routine);
+//     private AutoRoutine outpostAndDepotRoutine() {
+//         final AutoRoutine routine = autoFactory.newRoutine("Outpost and Depot");
+//         final AutoTrajectory startToOutpost = OutpostAndDepotTrajectory$0.asAutoTraj(routine);
+//         final AutoTrajectory outpostToDepot = OutpostAndDepotTrajectory$1.asAutoTraj(routine);
+//         final AutoTrajectory depotToShootingPose = OutpostAndDepotTrajectory$2.asAutoTraj(routine);
+//         final AutoTrajectory shootingPoseToTower = OutpostAndDepotTrajectory$3.asAutoTraj(routine);
         
 
-        routine.active().onTrue(
-            Commands.sequence(
-                startToOutpost.resetOdometry(),
-                startToOutpost.cmd()
-            )
-        );
+//         routine.active().onTrue(
+//             Commands.sequence(
+//                 startToOutpost.resetOdometry(),
+//                 startToOutpost.cmd()
+//             )
+//         );
 
-        routine.observe(hanger::isHomed).onTrue(
-            Commands.sequence(
-                Commands.waitSeconds(0.5),
-                intake.runOnce(() -> intake.set(Intake.Position.ReadyToIntake))
-            )
-        );
+//         routine.observe(hanger::isHomed).onTrue(
+//             Commands.sequence(
+//                 Commands.waitSeconds(0.5),
+//                 intake.runOnce(() -> intake.set(Intake.Position.ReadyToIntake))
+//             )
+//         );
 
-        startToOutpost.doneDelayed(1).onTrue(outpostToDepot.cmd());
+//         startToOutpost.doneDelayed(1).onTrue(outpostToDepot.cmd());
 
-        outpostToDepot.atTimeBeforeEnd(1).onTrue(intake.intakeCommand());
-        outpostToDepot.doneDelayed(0.1).onTrue(depotToShootingPose.cmd());
+//         outpostToDepot.atTimeBeforeEnd(1).onTrue(intake.intakeCommand());
+//         outpostToDepot.doneDelayed(0.1).onTrue(depotToShootingPose.cmd());
 
-        depotToShootingPose.active().whileTrue(limelight.idle());
-        depotToShootingPose.atTime(0.5).onTrue(
-            Commands.parallel(
-                shooter.spinUpCommand(2600),
-                hood.positionCommand(0.32)
-            )
-        );
-        depotToShootingPose.done().onTrue(
-            Commands.sequence(
-                subsystemCommands.aimAndShoot()
-                    .withTimeout(5),
-                shootingPoseToTower.cmd()
-            )
-        );
+//         depotToShootingPose.active().whileTrue(limelight.idle());
+//         depotToShootingPose.atTime(0.5).onTrue(
+//             Commands.parallel(
+//                 shooter.spinUpCommand(2600),
+//                 hood.positionCommand(0.32)
+//             )
+//         );
+//         depotToShootingPose.done().onTrue(
+//             Commands.sequence(
+//                 subsystemCommands.aimAndShoot()
+//                     .withTimeout(5),
+//                 shootingPoseToTower.cmd()
+//             )
+//         );
 
-        shootingPoseToTower.active().whileTrue(limelight.idle());
-        shootingPoseToTower.active().onTrue(hanger.positionCommand(Hanger.Position.HANGING));
-        shootingPoseToTower.done().onTrue(hanger.positionCommand(Hanger.Position.HUNG));
+//         shootingPoseToTower.active().whileTrue(limelight.idle());
+//         shootingPoseToTower.active().onTrue(hanger.positionCommand(Hanger.Position.HANGING));
+//         shootingPoseToTower.done().onTrue(hanger.positionCommand(Hanger.Position.HUNG));
 
-        return routine;
-    }
+//         return routine;
+//     }
 }

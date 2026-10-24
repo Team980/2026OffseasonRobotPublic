@@ -10,22 +10,33 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.Volts;
 
 import java.util.Optional;
+import frc.util.CustomJoystick;
+import frc.util.TargetUtil;
 
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.hardware.TalonFX;
-
+import frc.robot.subsystems.Shooter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.apriltag.AprilTagFields;
+import edu.wpi.first.hal.AllianceStationID;
+import edu.wpi.first.hal.HAL.SimPeriodicAfterCallback;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.kinematics.Odometry;
+import edu.wpi.first.networktables.BooleanPublisher;
+import edu.wpi.first.networktables.DoublePublisher;
+import edu.wpi.first.networktables.DoubleTopic;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.units.Units;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.drive.RobotDriveBase;
+import edu.wpi.first.wpilibj.simulation.DriverStationSim;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Threads;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -33,10 +44,10 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import frc.robot.commands.PrepareShotCommand;
+import frc.robot.Constants.ControllerSetting;
+import frc.robot.commands.AimAndDriveCommand;
 import frc.robot.generated.TunerConstants;
-import frc.robot.subsystems.GyroIO;
-import frc.robot.subsystems.GyroIOPigeon2;
+import frc.util.CustomJoystick;
 
 import org.littletonrobotics.junction.LogFileUtil;
 import org.littletonrobotics.junction.LoggedRobot;
@@ -54,70 +65,57 @@ import org.littletonrobotics.junction.wpilog.WPILOGWriter;
 public class Robot extends LoggedRobot {
     private final RobotContainer m_robotContainer;
     private Command autonomousCommand;
-    public static Alliance alliance = DriverStation.Alliance.Blue;
-
-    public enum AimStates
-    {
-        HUBAIM,
-        LEFTCORNER,
-        RIGHTCORNER;
-    }
-
-    public AimStates aimStates = AimStates.HUBAIM;
-    public static boolean hasAimedOnce = false;
-    
-    
+    public BooleanPublisher isEnabled = NetworkTableInstance.getDefault().getBooleanTopic("SmartDashboard/robot states/is enabled").publish();
+    public BooleanPublisher isTeleop = NetworkTableInstance.getDefault().getBooleanTopic("SmartDashboard/robot states/is teleop").publish();
+    public DoublePublisher matchTimePub = NetworkTableInstance.getDefault().getDoubleTopic("SmartDashboard/time/match time").publish();
+    public DoublePublisher countdownPub = NetworkTableInstance.getDefault().getDoubleTopic("SmartDashboard/time/count down").publish();
+    public double prevTime = -1;
     /**
      * This function is run when the robot is first started up and should be used for any
      * initialization code.
      */
     public Robot() {
-         RobotContainer.hasSeededPose = false;
         System.out.println("Constants.currentMode: " + Constants.currentMode);  
         switch (Constants.currentMode) {
-            case REAL:
+            case REAL -> {
                 // Running on a real robot, log to a USB stick ("/U/logs")
-                Logger.addDataReceiver(new WPILOGWriter());
+                //Logger.addDataReceiver(new WPILOGWriter());
                 Logger.addDataReceiver(new NT4Publisher());
-                RobotController.setBrownoutVoltage(7.5);
-                break;
+                RobotController.setBrownoutVoltage(6.1);
+            }
 
-            case SIM:
+            case SIM -> {
                 // Running a physics simulator, log to NT
                 Logger.addDataReceiver(new NT4Publisher());
-                break;
+            }
 
-            case REPLAY:
+            case REPLAY -> {
                 // Replaying a log, set up replay source
                 setUseTiming(false); // Run as fast as possible
                 String logPath = LogFileUtil.findReplayLog();
                 Logger.setReplaySource(new WPILOGReader(logPath));
                 Logger.addDataReceiver(new WPILOGWriter(LogFileUtil.addPathSuffix(logPath, "_sim")));
-                break;
+            }
         }
-         // Start AdvantageKit logger
         Logger.start();
 
-        // Instantiate our RobotContainer.  This will perform all our button bindings, and put our
-        // autonomous chooser on the dashboard.
         m_robotContainer = new RobotContainer();
-        SmartDashboard.putData(CommandScheduler.getInstance());
+        //////////Smartdashboard.putData(CommandScheduler.getInstance());
         RobotController.setBrownoutVoltage(Volts.of(6.1));
     }
 
     @Override
     public void disabledPeriodic()
     {
-        //   if(!DriverStation.isEnabled() && !RobotContainer.hasEnabled)
-        // {
-            // System.out.println("Robot Enabled");
-            // RobotContainer.hasEnabled = true;
-            RobotContainer.hasSeededPose = false;
-       // }
-    
-       
+        // Vision seeding is re-armed once in disabledInit().
     }
 
+    @Override
+    public void disabledInit(){
+        m_robotContainer.seedAgain();
+        m_robotContainer.shooter.eStop();
+        //m_robotContainer.subsystemCommands.resetRobot();
+    }
     
     
     /**
@@ -129,23 +127,20 @@ public class Robot extends LoggedRobot {
      */
     @Override
     public void robotPeriodic() {
+        matchTimePub.set(DriverStation.getMatchTime());
+        isEnabled.set(DriverStation.isEnabled());
+        isTeleop.set(DriverStation.isTeleop());
         // start at high priority for robot code to minimize latency
         Threads.setCurrentThreadPriority(true, 99);
         // Runs the Scheduler.  This is responsible for polling buttons, adding newly-scheduled
         // commands, running already-scheduled commands, removing finished or interrupted commands,
         // and running subsystem periodic() methods.  This must be called from the robot's periodic
         // block in order for anything in the Command-based framework to work.
-      // System.out.println( m_robotContainer.intake.pivotMotor.getPosition().getValueAsDouble());
-      // System.out.println(m_robotContainer.intake.pivotMotor.rotation);
-     
-        // Optional<Alliance> allianceOptional = DriverStation.getAlliance();
+
         
         CommandScheduler.getInstance().run();
-        // if (allianceOptional.isPresent()) {
-        //     alliance = allianceOptional.get();
-        // } 
-        // return to default priority for non-robot code
         Threads.setCurrentThreadPriority(false, 10);
+        m_robotContainer.updateSwerveTelemetry();
         Logger.recordOutput("Zeroed exterior poses", new Pose3d [] {new Pose3d()});
         Logger.recordOutput("ZeroedInteriorPoses", new Pose3d[] {new Pose3d()});
         Logger.recordOutput(
@@ -154,59 +149,6 @@ public class Robot extends LoggedRobot {
           new Pose3d(
               0, 0, Math.sin(Timer.getTimestamp()) * 0.37 - 0.07, new Rotation3d(0.0, 0.0, 0.0))
         });
-        if(alliance != null)
-        {
-            m_robotContainer.driver.rightBumper().whileTrue(m_robotContainer.subsystemCommands.testAim());
-        }
-       
-      //  SmartDashboard.putNumber("Distance to Hub (inches)", PrepareShotCommand.distanceHub);
-        //System.out.println(RobotContainer.isInCenter);
-        if(Alliance.Blue == alliance && m_robotContainer.swerve.getState().Pose.getX() - Landmark.HUB.get().getX() > 0)
-        {
-            RobotContainer.isInCenter = true;
-        }
-        else if(Alliance.Red == alliance && m_robotContainer.swerve.getState().Pose.getX() - Landmark.HUB.get().getX() < 0)
-        {
-            RobotContainer.isInCenter = true;
-        }
-        else if(Alliance.Blue == alliance && m_robotContainer.swerve.getState().Pose.getX() - Landmark.HUB.get().getX() < 0)
-        {
-            RobotContainer.isInCenter = false;
-        }
-        else if(Alliance.Red == alliance && m_robotContainer.swerve.getState().Pose.getX() - Landmark.HUB.get().getX() > 0)
-        {
-            RobotContainer.isInCenter = false;
-        }
-
-          if(RobotContainer.isInCenter)
-        {
-            m_robotContainer.driver.y().whileTrue(m_robotContainer.subsystemCommands.testAimRightCorner());
-            m_robotContainer.driver.a().whileTrue(m_robotContainer.subsystemCommands.testAimLeftCorner());
-            hasAimedOnce = false;
-        }
-        else if((aimStates == AimStates.HUBAIM || !RobotContainer.isInCenter) && !hasAimedOnce)
-        {
-            m_robotContainer.driver.rightBumper().whileTrue(m_robotContainer.subsystemCommands.testAim());
-            hasAimedOnce = true;
-        }
-        
-
-    //   //  System.out.println(m_robotContainer.driver.y().getAsBoolean());
-        if(m_robotContainer.driver.y().getAsBoolean() && aimStates != AimStates.RIGHTCORNER)
-        {
-            aimStates = AimStates.RIGHTCORNER;
-            m_robotContainer.operator.rightTrigger().whileTrue(m_robotContainer.subsystemCommands.preShootRightCommand());
-        }
-        else if(m_robotContainer.driver.a().getAsBoolean() && aimStates != AimStates.LEFTCORNER)
-        {
-              aimStates = AimStates.LEFTCORNER;
-            m_robotContainer.operator.rightTrigger().whileTrue(m_robotContainer.subsystemCommands.preShootLeftCommand());
-        }
-        else if(aimStates != AimStates.HUBAIM)
-        {
-            aimStates = AimStates.HUBAIM;
-            m_robotContainer.operator.rightTrigger().whileTrue(m_robotContainer.subsystemCommands.preShootCommand());
-        }
 
         // AdvantageScope via Advantagkit trying to log the motor positions in 3d field
         //Intakeangle
@@ -243,7 +185,6 @@ public class Robot extends LoggedRobot {
             
             // Shooter angle
       //  m_robotContainer.swerve.updateSimState(defaultPeriodSecs, defaultPeriodSecs);
-        //Odometry.update(GyroIOPigeon2., )
 
         //System.out.println(m_robotContainer.swerve.getState().Pose);
        // System.out.println(m_robotContainer.driver.getRawAxis());
@@ -252,44 +193,53 @@ public class Robot extends LoggedRobot {
     //     var flTarget = state.ModuleTargets[0];
     //     var flActual = state.ModuleStates[0];
 
-    //     SmartDashboard.putNumber("FL Target Speed",
+    //     //////////Smartdashboard.putNumber("FL Target Speed",
     //         flTarget.speedMetersPerSecond);
 
-    //     SmartDashboard.putNumber("FL Actual Speed",flActual.speedMetersPerSecond);
-    //     SmartDashboard.putNumber("FL Speed Error", flTarget.speedMetersPerSecond - flActual.speedMetersPerSecond);
+    //     //////////Smartdashboard.putNumber("FL Actual Speed",flActual.speedMetersPerSecond);
+    //     //////////Smartdashboard.putNumber("FL Speed Error", flTarget.speedMetersPerSecond - flActual.speedMetersPerSecond);
     //     var constrainTargetAngle = ((flTarget.angle.getDegrees() + 180) % 360 + 360) % 360 - 180;
     //     var constrainActualAngle = ((flActual.angle.getDegrees() + 180) % 360 + 360) % 360 - 180;
-    //     SmartDashboard.putNumber("FL Target Angle",
+    //     //////////Smartdashboard.putNumber("FL Target Angle",
     //         constrainTargetAngle);
 
-    //     SmartDashboard.putNumber("FL Actual Angle", constrainActualAngle);
+    //     //////////Smartdashboard.putNumber("FL Actual Angle", constrainActualAngle);
 
-    //     SmartDashboard.putNumber("FL Angle Error", MathUtil.angleModulus(constrainTargetAngle - constrainActualAngle));
+    //     //////////Smartdashboard.putNumber("FL Angle Error", MathUtil.angleModulus(constrainTargetAngle - constrainActualAngle));
 
        //System.out.println(TunerConstants.FrontLeft.)
+       //System.out.println(TargetUtil.targetOffset);
     }
 
     /** This autonomous runs the autonomous command selected by your {@link RobotContainer} class. */
     @Override
     public void autonomousInit() {
+        prevTime = Timer.getFPGATimestamp();
        autonomousCommand = m_robotContainer.getAutonomousCommand();
 
         //schedule the autonomous command (example)
         if (autonomousCommand != null) {
             CommandScheduler.getInstance().schedule(autonomousCommand);
         }
-       // CommandScheduler.getInstance().schedule(m_robotContainer.autoRoutines.getAutonomousCommand());
-      // m_robotContainer.autoInit();
     }
 
     @Override
     public void autonomousPeriodic()
     {
-        //System.out.println(m_r obotContainer.swerve.getState().Pose);
+        countdownPub.set(20-((int) ((Timer.getFPGATimestamp() - prevTime) * 100) / 100));
     }
 
     @Override
     public void teleopPeriodic() {
+        double dt = (int) ((Timer.getFPGATimestamp() - prevTime) * 100) / 100;
+        double res = -1;
+        if (dt < 10) res = 10 - dt;
+        else if (dt < 35) res = 35 - dt;
+        else if (dt < 60) res = 60 - dt;
+        else if (dt < 85) res = 85 - dt;
+        else if (dt < 110) res = 110 - dt;
+        else res = 140 - dt;
+        countdownPub.set(res);
         // SignalLogger.writeValue("SwerveMotorVelocity",
         //  RotationsPerSecond.of(m_robotContainer.swerve.getModule(0).getSteerMotor().getVelocity().getValueAsDouble()));
         //  SignalLogger.writeValue("SwerveMotorPosition",
@@ -298,13 +248,37 @@ public class Robot extends LoggedRobot {
         //  Volts.of(m_robotContainer.swerve.getModule(0).getSteerMotor().getMotorVoltage().getValueAsDouble()));
     }
 
-    // @Override
-    // public void teleopInit() {
-    //     m_robotContainer.swerve.seedFieldCentric();
-    // }
-      /** This function is called once when the robot is first started up. */
     @Override
-    public void simulationInit() {}
+    public void teleopInit() {
+        prevTime = Timer.getFPGATimestamp();
+        if (Constants.ControllerSettingManuallySet == null) {
+            if (DriverStation.isJoystickConnected(0) && DriverStation.isJoystickConnected(1)) {
+                RobotContainer.controllerSetting = ControllerSetting.TWO;
+            } else {
+                RobotContainer.controllerSetting = ControllerSetting.ONE;
+            }
+        } else {
+            RobotContainer.controllerSetting = Constants.ControllerSettingManuallySet;
+        }
+
+        if (RobotContainer.controllerSetting == ControllerSetting.TWO) {
+            RobotContainer.driverShiftKey = false;
+        }
+
+        RobotContainer.controllerSettingPublisher.set(RobotContainer.controllerSetting == ControllerSetting.TWO ? "two" : "one");
+
+        CommandScheduler.getInstance().schedule(RobotContainer.aimOffsetCommand);
+    }
+
+    private boolean testBlue = false;
+
+    @Override
+    public void simulationInit() {
+        // if (testBlue) {
+        //     DriverStationSim.setAllianceStationId(AllianceStationID.Blue1);
+        //     DriverStationSim.notifyNewData(); 
+        // }
+    }
 
     /** This function is called periodically whilst in simulation. */
     @Override
@@ -313,5 +287,7 @@ public class Robot extends LoggedRobot {
             0.02,
             RobotController.getBatteryVoltage()
         );
+
+        CustomJoystick.updateAllJoysticksTelemetry();
     }
 }

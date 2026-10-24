@@ -24,75 +24,103 @@ public record ChoreoTraj(
     Pose2d initialPoseBlue,
     Pose2d endPoseBlue
 ) {
-    public static final ChoreoTraj AllianceFlipTest = new ChoreoTraj(
-	    "AllianceFlipTest",
+    public static final ChoreoTraj COMPLeftBumpToCenter = new ChoreoTraj(
+	    "COMPLeftBumpToCenter",
 	    OptionalInt.empty(),
-	    14.38841,
-	    new Pose2d(16.048, 2.133, Rotation2d.fromRadians(3.142)),
-	    new Pose2d(14.548, 1.833, Rotation2d.fromRadians(-1.571))
+	    10.09713,
+	    new Pose2d(3.509, 5.581, Rotation2d.fromRadians(-0.852)),
+	    new Pose2d(3.027, 5.728, Rotation2d.fromRadians(-1.026))
 	);
-	public static final ChoreoTraj AutoBallCenterRight = new ChoreoTraj(
-	    "AutoBallCenterRight",
-	    OptionalInt.empty(),
-	    34.24016,
-	    new Pose2d(3.611, 0.611, Rotation2d.fromRadians(3.142)),
-	    new Pose2d(0.941, 3.564, Rotation2d.fromRadians(3.142))
-	);
-	public static final ChoreoTraj AutoBallCenterRight$0 = new ChoreoTraj(
-	    "AutoBallCenterRight",
+	public static final ChoreoTraj COMPLeftBumpToCenter$0 = new ChoreoTraj(
+	    "COMPLeftBumpToCenter",
 	    OptionalInt.of(0),
-	    1.2338,
-	    new Pose2d(3.611, 0.611, Rotation2d.fromRadians(3.142)),
-	    new Pose2d(6.351, 0.621, Rotation2d.fromRadians(3.142))
+	    3.52767,
+	    new Pose2d(3.509, 5.581, Rotation2d.fromRadians(-0.852)),
+	    new Pose2d(7.064, 7.282, Rotation2d.fromRadians(-1.08))
 	);
-	public static final ChoreoTraj AutoBallCenterRight$1 = new ChoreoTraj(
-	    "AutoBallCenterRight",
+	public static final ChoreoTraj COMPLeftBumpToCenter$1 = new ChoreoTraj(
+	    "COMPLeftBumpToCenter",
 	    OptionalInt.of(1),
-	    3.5238,
-	    new Pose2d(6.351, 0.621, Rotation2d.fromRadians(3.142)),
-	    new Pose2d(5.779, 0.621, Rotation2d.fromRadians(3.142))
+	    4.670669999999999,
+	    new Pose2d(7.064, 7.282, Rotation2d.fromRadians(-1.08)),
+	    new Pose2d(6.038, 5.561, Rotation2d.fromRadians(2.716))
 	);
-	public static final ChoreoTraj AutoBallCenterRight$2 = new ChoreoTraj(
-	    "AutoBallCenterRight",
+	public static final ChoreoTraj COMPLeftBumpToCenter$2 = new ChoreoTraj(
+	    "COMPLeftBumpToCenter",
 	    OptionalInt.of(2),
-	    25.64612,
-	    new Pose2d(5.779, 0.621, Rotation2d.fromRadians(3.142)),
-	    new Pose2d(2.083, 2.414, Rotation2d.fromRadians(0.234))
+	    1.89879,
+	    new Pose2d(6.038, 5.561, Rotation2d.fromRadians(2.716)),
+	    new Pose2d(3.027, 5.728, Rotation2d.fromRadians(-1.026))
 	);
-	public static final ChoreoTraj AutoBallCenterRight$3 = new ChoreoTraj(
-	    "AutoBallCenterRight",
+	public static final ChoreoTraj COMPRightBumpToCenter = new ChoreoTraj(
+	    "COMPRightBumpToCenter",
+	    OptionalInt.empty(),
+	    14.21613,
+	    new Pose2d(3.536, 2.377, Rotation2d.fromRadians(0.785)),
+	    new Pose2d(2.774, 2.431, Rotation2d.fromRadians(0.785))
+	);
+	public static final ChoreoTraj COMPRightBumpToCenter$0 = new ChoreoTraj(
+	    "COMPRightBumpToCenter",
+	    OptionalInt.of(0),
+	    1.39999,
+	    new Pose2d(3.536, 2.377, Rotation2d.fromRadians(0.785)),
+	    new Pose2d(5.542, 2.35, Rotation2d.fromRadians(0.785))
+	);
+	public static final ChoreoTraj COMPRightBumpToCenter$1 = new ChoreoTraj(
+	    "COMPRightBumpToCenter",
+	    OptionalInt.of(1),
+	    4.00387,
+	    new Pose2d(5.542, 2.35, Rotation2d.fromRadians(0.785)),
+	    new Pose2d(5.542, 2.45, Rotation2d.fromRadians(0.785))
+	);
+	public static final ChoreoTraj COMPRightBumpToCenter$2 = new ChoreoTraj(
+	    "COMPRightBumpToCenter",
+	    OptionalInt.of(2),
+	    1.5459399999999999,
+	    new Pose2d(5.542, 2.45, Rotation2d.fromRadians(0.785)),
+	    new Pose2d(2.783, 2.431, Rotation2d.fromRadians(0.699))
+	);
+	public static final ChoreoTraj COMPRightBumpToCenter$3 = new ChoreoTraj(
+	    "COMPRightBumpToCenter",
 	    OptionalInt.of(3),
-	    3.836440000000003,
-	    new Pose2d(2.083, 2.414, Rotation2d.fromRadians(0.234)),
-	    new Pose2d(0.941, 3.564, Rotation2d.fromRadians(3.142))
+	    1.8893199999999997,
+	    new Pose2d(2.783, 2.431, Rotation2d.fromRadians(0.699)),
+	    new Pose2d(5.542, 2.35, Rotation2d.fromRadians(0.785))
+	);
+	public static final ChoreoTraj COMPRightBumpToCenter$4 = new ChoreoTraj(
+	    "COMPRightBumpToCenter",
+	    OptionalInt.of(4),
+	    3.8518800000000013,
+	    new Pose2d(5.542, 2.35, Rotation2d.fromRadians(0.785)),
+	    new Pose2d(5.542, 2.45, Rotation2d.fromRadians(0.785))
+	);
+	public static final ChoreoTraj COMPRightBumpToCenter$5 = new ChoreoTraj(
+	    "COMPRightBumpToCenter",
+	    OptionalInt.of(5),
+	    1.525129999999999,
+	    new Pose2d(5.542, 2.45, Rotation2d.fromRadians(0.785)),
+	    new Pose2d(2.774, 2.431, Rotation2d.fromRadians(0.785))
 	);
 	public static final ChoreoTraj DepotIntaking = new ChoreoTraj(
 	    "DepotIntaking",
 	    OptionalInt.empty(),
-	    4.1697,
-	    new Pose2d(0.535, 5.499, Rotation2d.fromRadians(3.142)),
-	    new Pose2d(0.535, 6.357, Rotation2d.fromRadians(3.142))
+	    4.83178,
+	    new Pose2d(0.468, 5.753, Rotation2d.fromRadians(3.142)),
+	    new Pose2d(0.468, 6.457, Rotation2d.fromRadians(3.142))
 	);
 	public static final ChoreoTraj DepotToTower = new ChoreoTraj(
 	    "DepotToTower",
 	    OptionalInt.empty(),
-	    4.13464,
+	    4.13465,
 	    new Pose2d(1.542, 5.586, Rotation2d.fromRadians(-0.785)),
 	    new Pose2d(1.989, 3.729, Rotation2d.fromRadians(3.142))
 	);
 	public static final ChoreoTraj DepotTurn = new ChoreoTraj(
 	    "DepotTurn",
 	    OptionalInt.empty(),
-	    3.18957,
-	    new Pose2d(0.741, 6.347, Rotation2d.fromRadians(3.142)),
+	    3.20144,
+	    new Pose2d(0.468, 6.347, Rotation2d.fromRadians(3.142)),
 	    new Pose2d(1.542, 5.586, Rotation2d.fromRadians(-0.785))
-	);
-	public static final ChoreoTraj DiagonalTest = new ChoreoTraj(
-	    "DiagonalTest",
-	    OptionalInt.empty(),
-	    3.0402,
-	    new Pose2d(5.251, 7.505, Rotation2d.fromRadians(0)),
-	    new Pose2d(6.425, 6.229, Rotation2d.fromRadians(0))
 	);
 	public static final ChoreoTraj HubShoot = new ChoreoTraj(
 	    "HubShoot",
@@ -101,12 +129,68 @@ public record ChoreoTraj(
 	    new Pose2d(3.449, 4.003, Rotation2d.fromRadians(0)),
 	    new Pose2d(3.144, 4.003, Rotation2d.fromRadians(0))
 	);
+	public static final ChoreoTraj LeftBumpToCenter = new ChoreoTraj(
+	    "LeftBumpToCenter",
+	    OptionalInt.empty(),
+	    14.02375,
+	    new Pose2d(3.536, 5.581, Rotation2d.fromRadians(-0.785)),
+	    new Pose2d(2.783, 5.581, Rotation2d.fromRadians(-0.785))
+	);
+	public static final ChoreoTraj LeftBumpToCenter$0 = new ChoreoTraj(
+	    "LeftBumpToCenter",
+	    OptionalInt.of(0),
+	    1.38875,
+	    new Pose2d(3.536, 5.581, Rotation2d.fromRadians(-0.785)),
+	    new Pose2d(5.542, 5.581, Rotation2d.fromRadians(0.785))
+	);
+	public static final ChoreoTraj LeftBumpToCenter$1 = new ChoreoTraj(
+	    "LeftBumpToCenter",
+	    OptionalInt.of(1),
+	    4.3039000000000005,
+	    new Pose2d(5.542, 5.581, Rotation2d.fromRadians(0.785)),
+	    new Pose2d(5.542, 5.581, Rotation2d.fromRadians(-0.785))
+	);
+	public static final ChoreoTraj LeftBumpToCenter$2 = new ChoreoTraj(
+	    "LeftBumpToCenter",
+	    OptionalInt.of(2),
+	    1.5044899999999997,
+	    new Pose2d(5.542, 5.581, Rotation2d.fromRadians(-0.785)),
+	    new Pose2d(2.783, 5.581, Rotation2d.fromRadians(-0.743))
+	);
+	public static final ChoreoTraj LeftBumpToCenter$3 = new ChoreoTraj(
+	    "LeftBumpToCenter",
+	    OptionalInt.of(3),
+	    1.6471100000000005,
+	    new Pose2d(2.783, 5.581, Rotation2d.fromRadians(-0.743)),
+	    new Pose2d(5.542, 5.581, Rotation2d.fromRadians(-0.785))
+	);
+	public static final ChoreoTraj LeftBumpToCenter$4 = new ChoreoTraj(
+	    "LeftBumpToCenter",
+	    OptionalInt.of(4),
+	    3.6733199999999986,
+	    new Pose2d(5.542, 5.581, Rotation2d.fromRadians(-0.785)),
+	    new Pose2d(5.542, 5.581, Rotation2d.fromRadians(-0.785))
+	);
+	public static final ChoreoTraj LeftBumpToCenter$5 = new ChoreoTraj(
+	    "LeftBumpToCenter",
+	    OptionalInt.of(5),
+	    1.5061800000000005,
+	    new Pose2d(5.542, 5.581, Rotation2d.fromRadians(-0.785)),
+	    new Pose2d(2.783, 5.581, Rotation2d.fromRadians(-0.785))
+	);
+	public static final ChoreoTraj LeftToCenter = new ChoreoTraj(
+	    "LeftToCenter",
+	    OptionalInt.empty(),
+	    10.02493,
+	    new Pose2d(3.069, 5.601, Rotation2d.fromRadians(-0.699)),
+	    new Pose2d(3.23, 5.41, Rotation2d.fromRadians(3.142))
+	);
 	public static final ChoreoTraj LimelightOutpost = new ChoreoTraj(
 	    "LimelightOutpost",
 	    OptionalInt.empty(),
-	    2.13229,
-	    new Pose2d(3.56, 0.696, Rotation2d.fromRadians(0.114)),
-	    new Pose2d(2.619, 0.697, Rotation2d.fromRadians(3.142))
+	    6.36913,
+	    new Pose2d(3.56, 0.666, Rotation2d.fromRadians(0.114)),
+	    new Pose2d(0.696, 0.742, Rotation2d.fromRadians(3.142))
 	);
 	public static final ChoreoTraj LimelightOutpostBetter = new ChoreoTraj(
 	    "LimelightOutpostBetter",
@@ -115,10 +199,38 @@ public record ChoreoTraj(
 	    new Pose2d(3.59, 0.402, Rotation2d.fromRadians(3.142)),
 	    new Pose2d(1.59, 0.402, Rotation2d.fromRadians(3.142))
 	);
+	public static final ChoreoTraj MovingTest0 = new ChoreoTraj(
+	    "MovingTest0",
+	    OptionalInt.empty(),
+	    2.84402,
+	    new Pose2d(3.534, 1.929, Rotation2d.fromRadians(0)),
+	    new Pose2d(3.534, 6.16, Rotation2d.fromRadians(0))
+	);
+	public static final ChoreoTraj MovingTestXFast = new ChoreoTraj(
+	    "MovingTestXFast",
+	    OptionalInt.empty(),
+	    2.02547,
+	    new Pose2d(3.534, 4.035, Rotation2d.fromRadians(0)),
+	    new Pose2d(1.734, 4.035, Rotation2d.fromRadians(0))
+	);
+	public static final ChoreoTraj MovingTestXPre = new ChoreoTraj(
+	    "MovingTestXPre",
+	    OptionalInt.empty(),
+	    2.73943,
+	    new Pose2d(3.534, 0.429, Rotation2d.fromRadians(0)),
+	    new Pose2d(3.534, 4.035, Rotation2d.fromRadians(0))
+	);
+	public static final ChoreoTraj MovingTestXSlow = new ChoreoTraj(
+	    "MovingTestXSlow",
+	    OptionalInt.empty(),
+	    3.71595,
+	    new Pose2d(3.534, 4.035, Rotation2d.fromRadians(0)),
+	    new Pose2d(1.734, 4.035, Rotation2d.fromRadians(0))
+	);
 	public static final ChoreoTraj OutpostAndDepotTrajectory = new ChoreoTraj(
 	    "OutpostAndDepotTrajectory",
 	    OptionalInt.empty(),
-	    11.33729,
+	    11.44603,
 	    new Pose2d(3.598, 0.64, Rotation2d.fromRadians(3.142)),
 	    new Pose2d(0.941, 3.564, Rotation2d.fromRadians(3.142))
 	);
@@ -132,21 +244,21 @@ public record ChoreoTraj(
 	public static final ChoreoTraj OutpostAndDepotTrajectory$1 = new ChoreoTraj(
 	    "OutpostAndDepotTrajectory",
 	    OptionalInt.of(1),
-	    3.40097,
+	    3.4009799999999997,
 	    new Pose2d(0.581, 0.669, Rotation2d.fromRadians(3.142)),
 	    new Pose2d(0.668, 5.964, Rotation2d.fromRadians(3.142))
 	);
 	public static final ChoreoTraj OutpostAndDepotTrajectory$2 = new ChoreoTraj(
 	    "OutpostAndDepotTrajectory",
 	    OptionalInt.of(2),
-	    2.5637499999999998,
+	    2.6501099999999997,
 	    new Pose2d(0.668, 5.964, Rotation2d.fromRadians(3.142)),
 	    new Pose2d(2.498, 4.035, Rotation2d.fromRadians(0))
 	);
 	public static final ChoreoTraj OutpostAndDepotTrajectory$3 = new ChoreoTraj(
 	    "OutpostAndDepotTrajectory",
 	    OptionalInt.of(3),
-	    3.5551499999999994,
+	    3.5775200000000007,
 	    new Pose2d(2.498, 4.035, Rotation2d.fromRadians(0)),
 	    new Pose2d(0.941, 3.564, Rotation2d.fromRadians(3.142))
 	);
@@ -160,16 +272,65 @@ public record ChoreoTraj(
 	public static final ChoreoTraj OutpostToTower = new ChoreoTraj(
 	    "OutpostToTower",
 	    OptionalInt.empty(),
-	    2.90859,
-	    new Pose2d(0.635, 0.666, Rotation2d.fromRadians(3.142)),
+	    3.43264,
+	    new Pose2d(0.671, 0.742, Rotation2d.fromRadians(-3.142)),
 	    new Pose2d(1.868, 3.741, Rotation2d.fromRadians(0))
 	);
 	public static final ChoreoTraj OutpostTurn = new ChoreoTraj(
 	    "OutpostTurn",
 	    OptionalInt.empty(),
-	    3.20146,
-	    new Pose2d(0.635, 0.666, Rotation2d.fromRadians(3.142)),
+	    3.20036,
+	    new Pose2d(0.671, 0.742, Rotation2d.fromRadians(3.142)),
 	    new Pose2d(1.463, 1.54, Rotation2d.fromRadians(0.785))
+	);
+	public static final ChoreoTraj RightToCenter = new ChoreoTraj(
+	    "RightToCenter",
+	    OptionalInt.empty(),
+	    16.28593,
+	    new Pose2d(3.536, 2.377, Rotation2d.fromRadians(0.785)),
+	    new Pose2d(2.774, 2.431, Rotation2d.fromRadians(0.785))
+	);
+	public static final ChoreoTraj RightToCenter$0 = new ChoreoTraj(
+	    "RightToCenter",
+	    OptionalInt.of(0),
+	    1.58961,
+	    new Pose2d(3.536, 2.377, Rotation2d.fromRadians(0.785)),
+	    new Pose2d(5.542, 2.35, Rotation2d.fromRadians(0.785))
+	);
+	public static final ChoreoTraj RightToCenter$1 = new ChoreoTraj(
+	    "RightToCenter",
+	    OptionalInt.of(1),
+	    4.5491399999999995,
+	    new Pose2d(5.542, 2.35, Rotation2d.fromRadians(0.785)),
+	    new Pose2d(5.542, 2.45, Rotation2d.fromRadians(2.356))
+	);
+	public static final ChoreoTraj RightToCenter$2 = new ChoreoTraj(
+	    "RightToCenter",
+	    OptionalInt.of(2),
+	    1.88251,
+	    new Pose2d(5.542, 2.45, Rotation2d.fromRadians(2.356)),
+	    new Pose2d(2.783, 2.431, Rotation2d.fromRadians(0.699))
+	);
+	public static final ChoreoTraj RightToCenter$3 = new ChoreoTraj(
+	    "RightToCenter",
+	    OptionalInt.of(3),
+	    2.0168999999999997,
+	    new Pose2d(2.783, 2.431, Rotation2d.fromRadians(0.699)),
+	    new Pose2d(5.542, 2.35, Rotation2d.fromRadians(0.785))
+	);
+	public static final ChoreoTraj RightToCenter$4 = new ChoreoTraj(
+	    "RightToCenter",
+	    OptionalInt.of(4),
+	    4.362820000000001,
+	    new Pose2d(5.542, 2.35, Rotation2d.fromRadians(0.785)),
+	    new Pose2d(5.542, 2.45, Rotation2d.fromRadians(2.356))
+	);
+	public static final ChoreoTraj RightToCenter$5 = new ChoreoTraj(
+	    "RightToCenter",
+	    OptionalInt.of(5),
+	    1.88495,
+	    new Pose2d(5.542, 2.45, Rotation2d.fromRadians(2.356)),
+	    new Pose2d(2.774, 2.431, Rotation2d.fromRadians(0.785))
 	);
 	public static final ChoreoTraj StartToOutpost = new ChoreoTraj(
 	    "StartToOutpost",
@@ -181,9 +342,9 @@ public record ChoreoTraj(
 	public static final ChoreoTraj ToDepot = new ChoreoTraj(
 	    "ToDepot",
 	    OptionalInt.empty(),
-	    4.92139,
-	    new Pose2d(3.485, 5.967, Rotation2d.fromRadians(3.142)),
-	    new Pose2d(0.582, 5.499, Rotation2d.fromRadians(3.142))
+	    7.99029,
+	    new Pose2d(3.447, 5.753, Rotation2d.fromRadians(-0.785)),
+	    new Pose2d(0.468, 5.753, Rotation2d.fromRadians(3.142))
 	);
 	public static final ChoreoTraj TrenchDriveForward = new ChoreoTraj(
 	    "TrenchDriveForward",
@@ -192,39 +353,41 @@ public record ChoreoTraj(
 	    new Pose2d(3.577, 0.645, Rotation2d.fromRadians(3.142)),
 	    new Pose2d(2.663, 0.645, Rotation2d.fromRadians(3.142))
 	);
-	public static final ChoreoTraj TriangleFromHubLeft = new ChoreoTraj(
-	    "TriangleFromHubLeft",
-	    OptionalInt.empty(),
-	    11.1789,
-	    new Pose2d(5.094, 7.621, Rotation2d.fromRadians(-1.571)),
-	    new Pose2d(5.094, 7.618, Rotation2d.fromRadians(-3.142))
-	);
-	public static final ChoreoTraj TurnToTower = new ChoreoTraj(
-	    "TurnToTower",
-	    OptionalInt.empty(),
-	    4.23892,
-	    new Pose2d(1.868, 3.741, Rotation2d.fromRadians(0)),
-	    new Pose2d(1.868, 3.741, Rotation2d.fromRadians(3.142))
-	);
 
     /**
      * A map between trajectory names and their corresponding data.
      * This allows for trajectory data to be looked up with strings during runtime.
      */
     public static final Map<String, ChoreoTraj> ALL_TRAJECTORIES = Map.ofEntries(
-    	Map.entry("AllianceFlipTest", AllianceFlipTest),
-		Map.entry("AutoBallCenterRight", AutoBallCenterRight),
-		Map.entry("AutoBallCenterRight$0", AutoBallCenterRight$0),
-		Map.entry("AutoBallCenterRight$1", AutoBallCenterRight$1),
-		Map.entry("AutoBallCenterRight$2", AutoBallCenterRight$2),
-		Map.entry("AutoBallCenterRight$3", AutoBallCenterRight$3),
+    	Map.entry("COMPLeftBumpToCenter", COMPLeftBumpToCenter),
+		Map.entry("COMPLeftBumpToCenter$0", COMPLeftBumpToCenter$0),
+		Map.entry("COMPLeftBumpToCenter$1", COMPLeftBumpToCenter$1),
+		Map.entry("COMPLeftBumpToCenter$2", COMPLeftBumpToCenter$2),
+		Map.entry("COMPRightBumpToCenter", COMPRightBumpToCenter),
+		Map.entry("COMPRightBumpToCenter$0", COMPRightBumpToCenter$0),
+		Map.entry("COMPRightBumpToCenter$1", COMPRightBumpToCenter$1),
+		Map.entry("COMPRightBumpToCenter$2", COMPRightBumpToCenter$2),
+		Map.entry("COMPRightBumpToCenter$3", COMPRightBumpToCenter$3),
+		Map.entry("COMPRightBumpToCenter$4", COMPRightBumpToCenter$4),
+		Map.entry("COMPRightBumpToCenter$5", COMPRightBumpToCenter$5),
 		Map.entry("DepotIntaking", DepotIntaking),
 		Map.entry("DepotToTower", DepotToTower),
 		Map.entry("DepotTurn", DepotTurn),
-		Map.entry("DiagonalTest", DiagonalTest),
 		Map.entry("HubShoot", HubShoot),
+		Map.entry("LeftBumpToCenter", LeftBumpToCenter),
+		Map.entry("LeftBumpToCenter$0", LeftBumpToCenter$0),
+		Map.entry("LeftBumpToCenter$1", LeftBumpToCenter$1),
+		Map.entry("LeftBumpToCenter$2", LeftBumpToCenter$2),
+		Map.entry("LeftBumpToCenter$3", LeftBumpToCenter$3),
+		Map.entry("LeftBumpToCenter$4", LeftBumpToCenter$4),
+		Map.entry("LeftBumpToCenter$5", LeftBumpToCenter$5),
+		Map.entry("LeftToCenter", LeftToCenter),
 		Map.entry("LimelightOutpost", LimelightOutpost),
 		Map.entry("LimelightOutpostBetter", LimelightOutpostBetter),
+		Map.entry("MovingTest0", MovingTest0),
+		Map.entry("MovingTestXFast", MovingTestXFast),
+		Map.entry("MovingTestXPre", MovingTestXPre),
+		Map.entry("MovingTestXSlow", MovingTestXSlow),
 		Map.entry("OutpostAndDepotTrajectory", OutpostAndDepotTrajectory),
 		Map.entry("OutpostAndDepotTrajectory$0", OutpostAndDepotTrajectory$0),
 		Map.entry("OutpostAndDepotTrajectory$1", OutpostAndDepotTrajectory$1),
@@ -233,11 +396,16 @@ public record ChoreoTraj(
 		Map.entry("OutpostCreateSpace", OutpostCreateSpace),
 		Map.entry("OutpostToTower", OutpostToTower),
 		Map.entry("OutpostTurn", OutpostTurn),
+		Map.entry("RightToCenter", RightToCenter),
+		Map.entry("RightToCenter$0", RightToCenter$0),
+		Map.entry("RightToCenter$1", RightToCenter$1),
+		Map.entry("RightToCenter$2", RightToCenter$2),
+		Map.entry("RightToCenter$3", RightToCenter$3),
+		Map.entry("RightToCenter$4", RightToCenter$4),
+		Map.entry("RightToCenter$5", RightToCenter$5),
 		Map.entry("StartToOutpost", StartToOutpost),
 		Map.entry("ToDepot", ToDepot),
-		Map.entry("TrenchDriveForward", TrenchDriveForward),
-		Map.entry("TriangleFromHubLeft", TriangleFromHubLeft),
-		Map.entry("TurnToTower", TurnToTower)
+		Map.entry("TrenchDriveForward", TrenchDriveForward)
     );
 
     /**

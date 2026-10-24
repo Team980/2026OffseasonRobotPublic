@@ -6,44 +6,78 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.Rotation;
+import static edu.wpi.first.units.Units.Seconds;
 import static edu.wpi.first.units.Units.Inches;
 import static edu.wpi.first.units.Units.Meter;
 
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import com.ctre.phoenix6.SignalLogger;
+import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.hardware.traits.HasTalonSignals;
+import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
+import com.ctre.phoenix6.swerve.SwerveRequest.Idle;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
 import com.pathplanner.lib.path.PathConstraints;
 import com.pathplanner.lib.path.PathPlannerPath;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.Vector;
+import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.Vector;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.numbers.N1;
+import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.networktables.BooleanPublisher;
+import edu.wpi.first.networktables.DoublePublisher;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableEvent;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StringPublisher;
+import edu.wpi.first.networktables.StringSubscriber;
+import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
+import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
+import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.ParallelDeadlineGroup;
+import edu.wpi.first.wpilibj2.command.WaitCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.Constants.AutoChooserConfig;
+import frc.robot.Constants.ControllerSetting;
 import frc.robot.Constants.Driving;
 import frc.robot.commands.AimAndDriveCommand;
-import frc.robot.commands.AimAndDriveToRightCommand;
 import frc.robot.commands.AutoRoutines;
 import frc.robot.commands.ManualDriveCommand;
 import frc.robot.commands.PreparePredictShotCommand;
-import frc.robot.commands.PrepareShotCommand;
 import frc.robot.commands.SubsystemCommands;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Feeder;
@@ -52,15 +86,11 @@ import frc.robot.subsystems.Hanger;
 import frc.robot.subsystems.Hood;
 import frc.robot.subsystems.Intake;
 import frc.robot.subsystems.Limelight;
-import frc.robot.subsystems.ModuleIOTalonFX;
 import frc.robot.subsystems.Shooter;
-import frc.robot.subsystems.OneShooter;
 import frc.robot.subsystems.Swerve;
 import frc.robot.subsystems.Floor.Speed;
-import frc.robot.subsystems.GyroIOPigeon2;
-import frc.robot.subsystems.PlotLandmarks;
+import frc.util.CustomJoystick;
 import frc.util.DriveInputSmoother;
-import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import frc.util.SwerveTelemetry;
 
 /**
@@ -72,233 +102,248 @@ import frc.util.SwerveTelemetry;
 public class RobotContainer {
     public static boolean isInTeleop = false;
     public static Pose2d lastPose;
-    public static double restrictedSpeed = 0.5; //TODO: Remove Speed restriction
+    public static double restrictedSpeed = 0.5;
     public static double unrestrictedSpeed = 1;
     public static double restrictedRotation = 0.6;
     public static double unrestrictedRotation = 1;
     public static double speedFactor = unrestrictedSpeed;
     public static double rotationFactor = unrestrictedRotation;
+    public static ControllerSetting controllerSetting;
+    public static ManualDriveCommand manualDriveCommand;
+
+    public static boolean driverShiftKey = false;
+    public static BooleanPublisher driverShiftKeyLogger = NetworkTableInstance.getDefault().getBooleanTopic("SmartDashboard/ManualConfigs/DriverShiftKey").publish();
     
     // For landmark visualizaton
-    private final PlotLandmarks plotter = new PlotLandmarks();
-    private final SendableChooser<Command> autoChooser;
-    //private final Swerve swerve = new Swerve();
+    //private final PlotLandmarks plotter = new PlotLandmarks();
+    public final Swerve swerve = new Swerve();
     public final Intake intake = new Intake();
     public final Floor floor = new Floor();
     public final Feeder feeder = new Feeder();
     public final Shooter shooter = new Shooter();
     private final Hood hood = new Hood();
     public final Hanger hanger = new Hanger();
-    public final Swerve swerve = new Swerve(
-                new GyroIOPigeon2(),
-                new ModuleIOTalonFX(TunerConstants.FrontLeft),
-                new ModuleIOTalonFX(TunerConstants.FrontRight),
-                new ModuleIOTalonFX(TunerConstants.BackLeft),
-                new ModuleIOTalonFX(TunerConstants.BackRight));
-    // private final Intake intake = null;
-    // private final Floor floor = null;
-    // private final Feeder feeder = null;
-    // //private final Shooter shooter = null;
-    // private final OneShooter shooter = null;
-    // private final Hood hood = null;
-    // private final Hanger hanger = null;
-    // private final Hanger leftHanger = null; //one is opposite
+    private final SendableChooser<Command> autoChooser;
+    public static Command aimOffsetCommand;
+
+
+    public static final StringPublisher controllerSettingPublisher = NetworkTableInstance.getDefault().getStringTopic("SmartDashboard/ManualConfigs/ControllerSetting").publish(); 
     private final Limelight limelight = new Limelight("limelight-pdp");
 
-    public static boolean isInCenter = false;
-    public static boolean faceRightSide = false;
 
     private final SwerveTelemetry swerveTelemetry = new SwerveTelemetry(Driving.kMaxSpeed.in(MetersPerSecond));
-    
-    public final CommandXboxController driver = new CommandXboxController(0);
-    public final CommandXboxController operator = new CommandXboxController(1);
+    public CommandXboxController driver;
+    public CommandXboxController operator;
 
     public static void restrictSpeed() {
         speedFactor = restrictedSpeed;
-        DriveInputSmoother.joystickDeadband = 0.1*speedFactor;
+        DriveInputSmoother.translationJoystickDeadband = DriveInputSmoother.joystickDeadband*speedFactor;
     }
     public static void unrestrictSpeed() {
         speedFactor = unrestrictedSpeed;
-        DriveInputSmoother.joystickDeadband = 0.1*speedFactor;
+        DriveInputSmoother.translationJoystickDeadband = DriveInputSmoother.joystickDeadband*speedFactor;
     }
 
     public static void restrictRotation()
     {
         rotationFactor = restrictedRotation;
+        DriveInputSmoother.rotationJoystickDeadband = DriveInputSmoother.joystickDeadband*rotationFactor;
     }
 
     public static void unrestrictRotation()
     {
         rotationFactor = unrestrictedRotation;
+        DriveInputSmoother.rotationJoystickDeadband = DriveInputSmoother.joystickDeadband*rotationFactor;
     }
-
 
     // private final AutoRoutines autoRoutines = new AutoRoutines(
     //     swerve,
-    //     null,
-    //     null,
-    //     null,
-    //     null,
-    //     null,
-    //     null,
+    //     intake,
+    //     floor,
+    //     feeder,
+    //     shooter,
+    //     hood,
+    //     hanger,
     //     limelight
     // );
 
-    
-    // private final SubsystemCommands subsystemCommands = new SubsystemCommands(
-    //     swerve,
-    //     null,
-    //     null,
-    //     null,
-    //     null,
-    //     null,
-    //     null,
-    //     () -> -driver.getLeftY(),
-    //     () -> -driver.getLeftX()
-    // );
-    private final AutoRoutines autoRoutines = new AutoRoutines(
-        swerve,
-        intake,
-        floor,
-        feeder,
-        shooter,
-        hood,
-        hanger,
-        limelight
-    );
+    public SubsystemCommands subsystemCommands;
 
+    public static PathConstraints namedCommandConstraints = new PathConstraints(0.85, 0.85, 0.85, 0.85);
+    public static PathConstraints teleopPath = new PathConstraints(3, 3, 1, 1);
     
-    public final SubsystemCommands subsystemCommands = new SubsystemCommands(
-        swerve,
-        intake,
-        floor,
-        feeder,
-        shooter,
-        hood,
-        hanger,
-        () -> -driver.getLeftY()*speedFactor,
-        () -> -driver.getLeftX()*speedFactor // reduced the speed
-    );
 
-   public static PathConstraints constraints =
-  new PathConstraints(0.85, 0.85, 0.85, 0.85);
-   // public static PathConstraints constraints =
-    //  new PathConstraints(2.25, 2, Units.degreesToRadians(540), Units.degreesToRadians(720));
-    /** The container for the robot. Contains subsystems, OI devices, and commands. */
     public RobotContainer() {
+        if (Constants.ControllerSettingManuallySet == null) {
+            if (DriverStation.isJoystickConnected(0) && DriverStation.isJoystickConnected(1)) {
+                RobotContainer.controllerSetting = ControllerSetting.TWO;
+            } else {
+                RobotContainer.controllerSetting = ControllerSetting.ONE;
+            }
+        } else {
+            RobotContainer.controllerSetting = Constants.ControllerSettingManuallySet;
+        }
+
+        if (RobotContainer.controllerSetting == ControllerSetting.TWO) {
+            driverShiftKey = false;
+        }
+
+        controllerSettingPublisher.set(RobotContainer.controllerSetting == ControllerSetting.TWO ? "two" : "one");
+
+
+
+        if (Robot.isReal()) {
+            driver = new CommandXboxController(0);
+            operator = new CommandXboxController(1);
+        } else {
+            driver = new CustomJoystick(CustomJoystick.DEFAULT_DEVICE_OS, 0);
+            operator = new CustomJoystick(CustomJoystick.DEFAULT_DEVICE_OS, 1);
+        }
+
+        manualDriveCommand = new ManualDriveCommand(
+            swerve,
+            () -> -driver.getLeftX() * (driverShiftKey ? 0 : 1),
+            () -> -driver.getLeftY() * (driverShiftKey ? 0 : 1),
+            () -> -driver.getRightX() * (driverShiftKey ? 0 : 1)
+        );
+
+        subsystemCommands = new SubsystemCommands(
+            swerve,
+            intake,
+            floor,
+            feeder,
+            shooter,
+            hood,
+            hanger,
+            manualDriveCommand
+        );
+
+
         configureBindings();
-        autoRoutines.configure();
-       // boolean isCompetition = true;
         registerNamedCommands();
-        autoChooser = AutoBuilder.buildAutoChooser();
+        // autoRoutines.configure();
+
+        // autoChooser = new SendableChooser<>();
+
         // autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(
-        // (stream) -> isCompetition
-        // ? stream.filter(auto -> auto.getName().startsWith("")) : stream);
+        // (stream) -> Constants.autoChooserConfig == Constants.AutoChooserConfig.COMP
+        // ? stream.filter(auto -> auto.getName().startsWith("COMP")) : stream);
+        
+        
+        // autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(
+        //     options -> Constants.autoChooserConfig == Constants.AutoChooserConfig.COMP
+        //         ? options.filter(auto -> auto.getName().toLowerCase(Locale.ROOT).startsWith("comp"))
+        //         : options
+        // );
+
+        autoChooser = AutoBuilder.buildAutoChooser();
         SmartDashboard.putData("AutoChooser", autoChooser);
+        
         swerve.resetPose(Pose2d.kZero);
-        lastPose = swerve.getState().Pose;
-       // System.out.println(limelight);
 
-       swerve.registerTelemetry(state -> {
-
+        swerve.registerTelemetry(state -> {
             swerveTelemetry.telemeterize(state);
-
-            plotter.updateRobotPose(lastPose);
-
-            var flTarget = state.ModuleTargets[0];
-            var flActual = state.ModuleStates[0];
-
-            double targetAngle =
-                MathUtil.inputModulus(flTarget.angle.getDegrees(), -180, 180);
-            double actualAngle =
-                MathUtil.inputModulus(flActual.angle.getDegrees(), -180, 180);
-
-            SmartDashboard.putNumber("FL Target Speed",
-                flTarget.speedMetersPerSecond);
-            SmartDashboard.putNumber("FL Actual Speed",
-                flActual.speedMetersPerSecond);
-
-            SmartDashboard.putNumber("FL Target Angle",
-                targetAngle);
-            SmartDashboard.putNumber("FL Actual Angle",
-                actualAngle);
-
-            SmartDashboard.putNumber("FL Speed Error",
-                flTarget.speedMetersPerSecond - flActual.speedMetersPerSecond);
-
-            SmartDashboard.putNumber("FL Angle Error",
-                targetAngle - actualAngle);
         });
+    }
+
+    public void updateSwerveTelemetry() {
+        final SwerveDriveState state = swerve.getStateCopy();
+        swerveTelemetry.updateMechanismTelemetry(state);
+
+        var flTarget = state.ModuleTargets[0];
+        var flActual = state.ModuleStates[0];
+
+        double targetAngle =
+            MathUtil.inputModulus(flTarget.angle.getDegrees(), -180, 180);
+        double actualAngle =
+            MathUtil.inputModulus(flActual.angle.getDegrees(), -180, 180);
+
+        // SmartDashboard.putNumber("FL Target Speed",
+        //     flTarget.speedMetersPerSecond);
+        // SmartDashboard.putNumber("FL Actual Speed",
+        //     flActual.speedMetersPerSecond);
+
+        // SmartDashboard.putNumber("FL Target Angle",
+        //     targetAngle);
+        // SmartDashboard.putNumber("FL Actual Angle",
+        //     actualAngle);
+
+        // SmartDashboard.putNumber("FL Speed Error",
+        //     flTarget.speedMetersPerSecond - flActual.speedMetersPerSecond);
+
+        // SmartDashboard.putNumber("FL Angle Error",
+        //     targetAngle - actualAngle);
     }
 
     public Command getAutonomousCommand() {
         return autoChooser.getSelected();
-   }
+    }
+    
 
 
     public void registerNamedCommands() {
-        // doesnt work
-        // NamedCommands.registerCommand("FaceSingularTag", 
-        // (AutoBuilder.pathfindToPose(Swerve.isTargeting() ? LimelightHelpers.getTargetPose3d_RobotSpace("limelight-pdp").toPose2d() : 
-        // Landmark.OUTPOST.get(), constraints, 0)));
-
-        // works
-        NamedCommands.registerCommand("Start", 
-        (AutoBuilder.pathfindToPose(Landmark.RIGHT_START.get(new Transform2d(Inches.of(0), Inches.of(0), Rotation2d.k180deg)), constraints,0)));
-
-        NamedCommands.registerCommand("Tower", 
-        (AutoBuilder.pathfindToPose(Landmark.TOWER.get(new Transform2d(Inches.of(Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 + 5 + 36), Inches.of(0), Rotation2d.k180deg)), constraints,0)));
-
-        NamedCommands.registerCommand("Outpost", 
-        (AutoBuilder.pathfindToPose(
-            Landmark.OUTPOST.get(new Transform2d(Inches.of(Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 + 1), Inches.of(0), Rotation2d.k180deg)), constraints,0)));
-                                                                                                //Measured to be 24, 17.5 + 5 (previously 10)
-        NamedCommands.registerCommand("Depot", 
-        (AutoBuilder.pathfindToPose(Landmark.DEPOT.get(new Transform2d(Inches.of(0), Inches.of(0), Rotation2d.k180deg)), constraints,0)));
-        
-        NamedCommands.registerCommand("Hub", 
-        (AutoBuilder.pathfindToPose(Landmark.HUB.get(new Transform2d(Inches.of(-24 - Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 - 2), Inches.of(0), Rotation2d.kZero)), constraints,0)));
-         
-        NamedCommands.registerCommand("RightBump", 
-        (AutoBuilder.pathfindToPose(Landmark.RIGHT_BUMP.get(new Transform2d(Inches.of(-24 - Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 - 2), Inches.of(0), Rotation2d.fromDegrees(0))), constraints,0)));
-        
-        NamedCommands.registerCommand("LeftBump", 
-        (AutoBuilder.pathfindToPose(Landmark.LEFT_BUMP.get(new Transform2d(Inches.of(-24 - Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 - 2), Inches.of(0), Rotation2d.fromDegrees(0))), constraints,0)));
-        
-        NamedCommands.registerCommand("RightTrench", 
-        (AutoBuilder.pathfindToPose(Landmark.RIGHT_TRENCH.get(new Transform2d(Inches.of(-24 - Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 - 2), Inches.of(0), Rotation2d.fromDegrees(0))), constraints,0)));
-        
-        NamedCommands.registerCommand("LeftTrench", 
-        (AutoBuilder.pathfindToPose(Landmark.LEFT_TRENCH.get(new Transform2d(Inches.of(-24 - Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 - 2), Inches.of(0), Rotation2d.fromDegrees(0))), constraints,0)));
+        registerAlliancePathfindCommand("Start", Landmark.RIGHT_START,
+            new Transform2d(Inches.of(0), Inches.of(0), Rotation2d.k180deg));
+        registerAlliancePathfindCommand("Tower", Landmark.TOWER,
+            new Transform2d(Inches.of(Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 + 5 + 36), Inches.of(0), Rotation2d.k180deg));
+        registerAlliancePathfindCommand("Outpost", Landmark.OUTPOST,
+            new Transform2d(Inches.of(Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 + 1), Inches.of(0), Rotation2d.k180deg));
+        registerAlliancePathfindCommand("Depot", Landmark.DEPOT,
+            new Transform2d(Inches.of(0), Inches.of(0), Rotation2d.k180deg));
+        registerAlliancePathfindCommand("Hub", Landmark.HUB,
+            new Transform2d(Inches.of(-24 - Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 - 2), Inches.of(0), Rotation2d.kZero));
+        registerAlliancePathfindCommand("RightBump", Landmark.RIGHT_BUMP,
+            new Transform2d(Inches.of(-24 - Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 - 2), Inches.of(0), Rotation2d.kZero));
+        registerAlliancePathfindCommand("LeftBump", Landmark.LEFT_BUMP,
+            new Transform2d(Inches.of(-24 - Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 - 2), Inches.of(0), Rotation2d.kZero));
+        registerAlliancePathfindCommand("RightTrench", Landmark.RIGHT_TRENCH,
+            new Transform2d(Inches.of(-24 - Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 - 2), Inches.of(0), Rotation2d.kZero));
+        registerAlliancePathfindCommand("LeftTrench", Landmark.LEFT_TRENCH,
+            new Transform2d(Inches.of(-24 - Constants.RobotDimensions.BUMPER_WIDTH.in(Inches)*0.5 - 2), Inches.of(0), Rotation2d.kZero));
         
         NamedCommands.registerCommand("AimToHub", 
-        (subsystemCommands.testAim())
+        (subsystemCommands.aim())
+        );
+
+        NamedCommands.registerCommand("IntakeOut", 
+            (subsystemCommands.intakeOut())
+        );
+        
+        NamedCommands.registerCommand("IntakeIn", 
+            subsystemCommands.intakeIn()
+        );
+
+        NamedCommands.registerCommand("Intake", 
+            (subsystemCommands.intake())
+        );
+        NamedCommands.registerCommand("PreShoot", 
+            (subsystemCommands.preshoot())
+        );
+
+        NamedCommands.registerCommand("Shoot", 
+            (subsystemCommands.feed())
         );
 
         NamedCommands.registerCommand("DeployIntake", 
-            (intake.GoOut())
+            (Commands.none())
         );
+        
 
-        NamedCommands.registerCommand("StartIntake", 
-            (intake.intakeCommand())
-        );
+        NamedCommands.registerCommand("Agitate", subsystemCommands.agitate());
+        
+        NamedCommands.registerCommand("AutomatedFire", subsystemCommands.automatedFire());
+    }
 
-        NamedCommands.registerCommand("IntakeIn", 
-            (intake.ReturnIn())
-        );
-
-        NamedCommands.registerCommand("StopIntake", 
-            (intake.stopRollers())
-        );
-
-        NamedCommands.registerCommand("Agitate", (intake.agitateCommand()));
-
-        Command parallelFeed = new ParallelCommandGroup(feeder.feedCommand(), floor.feedCommand());
-        final PrepareShotCommand prepareShotCommand = new PrepareShotCommand(shooter, hood, () -> swerve.getState().Pose);
-        NamedCommands.registerCommand("PreShoot", prepareShotCommand);
-        NamedCommands.registerCommand("Shoot", parallelFeed);
-        NamedCommands.registerCommand("StopShooter", shooter.stopShootCommand());
-        NamedCommands.registerCommand("ClimberUp", hanger.hangarUpCommand());
+    /** Prebuild both destinations; select the current alliance each time the command starts. */
+    private void registerAlliancePathfindCommand(String name, Landmark landmark, Transform2d adjustment) {
+        Command redPath = AutoBuilder.pathfindToPose(
+            landmark.get(Alliance.Red, adjustment), namedCommandConstraints, 0);
+        Command bluePath = AutoBuilder.pathfindToPose(
+            landmark.get(Alliance.Blue, adjustment), namedCommandConstraints, 0);
+        // These are already alliance-adjusted blue-origin poses, so do not flip them again.
+        // ConditionalCommand inherits both paths' requirements from AutoBuilder.
+        NamedCommands.registerCommand(name, Commands.either(
+            redPath, bluePath, () -> Constants.alliance.get() == Alliance.Red));
     }
     
     /**
@@ -312,220 +357,282 @@ public class RobotContainer {
      */
     private void configureBindings() {
         configureManualDriveBindings();
-       // if(isInTeleop)
-            limelight.setDefaultCommand(updateVisionCommand());
-       /*  else
-        {
-            limelight.setDefaultCommand(slowUpdateVisionCommand());
-        }*/
+        limelight.setDefaultCommand(updateVisionCommand());
+        shooter.setDefaultCommand(shooter.idleShooterCommand());
+        swerve.setDefaultCommand(manualDriveCommand);
+        // Operator Bindings
         
+        // === STICKS ===
 
-        // RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop())
-        //     .onTrue(intake.homingCommand())
-        //     .onTrue(hanger.homingCommand());
-        // driver.povRight()//actaully down
+        // Left Stick X: 
+         aimOffsetCommand = subsystemCommands.aimOffset(
+             () -> driverShiftKey ? driver.getLeftX() : operator.getLeftX(),
+             () -> driverShiftKey ? driver.getLeftY() : operator.getLeftY()
+        );
+        // Left Stick Y: 
 
-        //     .whileTrue(hanger.manualUpCommand()).whileFalse(hanger.stopCommand());
-        // driver.povLeft() //actually up
-        //     .whileTrue(hanger.manualDownCommand()).whileFalse(hanger.stopCommand());
-        //  driver.povUp()
-        //      .whileTrue(hanger.hangarUpCommand()).whileFalse(hanger.stopCommand());
-        // operator.a()
-        //     .whileTrue(hanger.hangarDownCommand());
-
-        operator.leftTrigger().whileTrue(intake.agitateCommand());
-
-        operator.b()
-            .onTrue(intake.GoOut());
-        operator.x()
-            .onTrue(intake.ReturnIn());
-         Command zeroCommand = intake.runOnce(() -> intake.resetDeployEncoder());
-         operator.povDown()
-             .onTrue(zeroCommand);
-        Command stopCommand = intake.runOnce(() -> intake.stopMotor());
-          operator.povUp()
-            .onTrue(stopCommand);
-
-        Command speedCommand = floor.runOnce(() -> floor.set(Speed.FEED));
-        driver.povDown().onTrue(hanger.hangarDownCommand());
-        //operator.leftTrigger().whileTrue(floor.feedCommand());
-
-
+        // Left Stick Click (L3): 
     
-      //  operator.rightBumper().whileTrue(shooter.dashboardSpinUpCommand()).whileFalse(shooter.stopShootCommand());
-        Command parallel = new ParallelCommandGroup(feeder.feedCommand(), floor.feedCommand());
-       // operator.rightTrigger().whileTrue(feeder.feedCommand()).whileTrue(floor.feedCommand());
-        //whileTrue(shooter.dashboardSpinUpCommand()).whileFalse(shooter.stopShootCommand());
-       // Command feedStop = floor.runOnce(() -> floor.set(Speed.STOP));
-       //  driver.a().whileTrue(feedStop);
-          //  .onTrue(hanger.homingCommand());
 
-      //  driver.rightTrigger().whileTrue(subsystemCommands.aimAndShoot());
-       // driver.rightBumper().whileTrue(subsystemCommands.shootManually());
-    //   driver.rightBumper().whileTrue(subsystemCommands.shootHalf()).whileFalse(subsystemCommands.stopShooter());
-     //    driver.leftTrigger().whileTrue(intake.intakeCommandNoWheels());
-     //positive should go outwards
-          operator.povRight().whileTrue(intake.percentMoveCommand(0.05)).whileFalse(intake.percentMoveCommand(0.0));
-         operator.povLeft().whileTrue(intake.percentMoveCommand(-0.05)).whileFalse(intake.percentMoveCommand(0.0));
-       /// System.out.println("subsystemCommands:"  + subsystemCommands);
+
+
+       // Right Stick X: 
+
+        // Right Stick Y: 
+
+        // Right Stick Click (R3): 
+
+        // === BUMPERS & TRIGGERS ===
+
+        // Left Bumper: Preshoot and Aim
+        operator.leftBumper()
+            .and(()->controllerSetting == ControllerSetting.TWO)
+            .whileTrue(subsystemCommands.preshootAndAimHub());
+
+        // Right Bumper: Fires without aiming
+        operator.rightBumper()
+            .and(()->controllerSetting == ControllerSetting.TWO)
+            .whileTrue(subsystemCommands.agitate());
+        
+        // Left Trigger: Agitate
+        operator.leftTrigger()
+            .and(()->controllerSetting == ControllerSetting.TWO)
+            .whileTrue(subsystemCommands.intake());
+
+        // Right Trigger: Rev Shooter Flywheels
+        operator.rightTrigger() // One controller - Parallel quick aim and fire + auto
+            .and(()->controllerSetting == ControllerSetting.TWO)
+            .whileTrue(subsystemCommands.automatedFire());
+
+        // === FACE BUTTONS ===
+        
+        // Button A: 
+        operator.a()
+            .onTrue(subsystemCommands.resetAimOffset());
+        // Button B: Outtake
+        operator.b()
+            .and(()->controllerSetting == ControllerSetting.TWO)
+            .whileTrue(subsystemCommands.outtake());
+        
+        // Button X: Zero Intake
+        operator.x()
+            .and(()->controllerSetting == ControllerSetting.TWO)
+            .onTrue(subsystemCommands.zeroIntakeDown());
        
-        // driver.leftBumper().onTrue(Commands.runOnce(SignalLogger::start));
-        // driver.rightBumper().onTrue(Commands.runOnce(SignalLogger::stop));
+        // Button Y: 
 
-        // /*
-        // * Joystick Y = quasistatic forward
-        // * Joystick A = quasistatic reverse
-        // * Joystick B = dynamic forward
-        // * Joystick X = dyanmic reverse
-        // */
-        // driver.y().whileTrue(swerve.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-        // driver.a().whileTrue(swerve.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-        // driver.b().whileTrue(swerve.sysIdDynamic(SysIdRoutine.Direction.kForward));
-        // driver.x().whileTrue(swerve.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+        // === DPAD (POV) ===
 
-        // driver.povUp().whileTrue(subsystemCommands.shootHalf());
-        // driver.povDown().whileTrue(subsystemCommands.stopShooter());
-        // driver.y().onTrue(hood.positionCommand(0.5));
-        // driver.a().onTrue(hood.positionCommand(0.25));
-        // driver.rightBumper().whileTrue(subsystemCommands.testAim());
+        // DPAD Up: Intake In
+        operator.povUp()
+            .and(()->controllerSetting == ControllerSetting.TWO)
+            .onTrue(subsystemCommands.intakeIn());
+        
+        // DPAD Down: Intake Out
+        operator.povDown()
+            .and(()->controllerSetting == ControllerSetting.TWO)
+            .onTrue(subsystemCommands.intakeOut());
 
-        // driver.povRight().onTrue(hanger.positionCommand(Hanger.Position.HANGING));
-        // driver.povLeft().onTrue(hanger.positionCommand(Hanger.Position.HUNG));
+        // DPAD Left: Intake In Manual 
+        operator.povLeft()
+            .and(()->controllerSetting == ControllerSetting.TWO)
+            .whileTrue(subsystemCommands.intakeInManual());
+        
+        // DPAD Right: Intake Out Manual
+        operator.povRight()
+            .and(()->controllerSetting == ControllerSetting.TWO)
+            .whileTrue(subsystemCommands.intakeOutManual());
+
+        // Reset Robot - Back and start
+        operator.start()
+            .and(operator.back())
+            .and(() -> controllerSetting == ControllerSetting.TWO)
+            .onTrue(subsystemCommands.resetRobot());
+
+        //Haptic
+        Trigger trigger = new Trigger(() -> {
+            return RobotController.getBatteryVoltage() <= 8.5;
+        });
+        trigger.whileTrue(Commands.startEnd(
+            () -> {
+                double voltMax = 3;
+                double voltDiff = 8.5 - RobotController.getBatteryVoltage();
+                voltDiff = Math.min(voltMax, voltDiff);
+                double percent = voltDiff / 3;
+                operator.setRumble(RumbleType.kBothRumble, 0.3 + 0.7 * percent);
+            },
+            () -> {
+                operator.setRumble(RumbleType.kBothRumble, 0);
+            }
+        ));
     }
-
-    // public Command setRightCorner(boolean isRight)
-    // {
-    //     if(isRight)
-    //     {
-    //         return Commands.runOnce(() -> plotter.setLandmarkPose(Landmark.RIGHT_CORNER.get()));
-    //     }
-    //     else
-    //     {
-    //         return Commands.runOnce(() -> plotter.setLandmarkPose(Landmark.LEFT_CORNER.get()));
-    //     }
-    // }
-
+    
+    /** Allows one vision pose seed while disabled, once a valid measurement is available. */
+    public void seedAgain()
+    {
+        hasSeededPose = false;
+    }
 
     private void configureManualDriveBindings() {
-        final ManualDriveCommand manualDriveCommand = new ManualDriveCommand(
-            swerve, 
-        //    (Alliance.Red != Robot.alliance) ? 
-            () -> -driver.getLeftY()*speedFactor 
-            // : 
-            // () -> driver.getLeftY()*speedFactor
-            , 
-        //    (Alliance.Red != Robot.alliance) ? 
-            () -> -driver.getLeftX()*speedFactor
-            // :
-            // () -> driver.getLeftX()*speedFactor
-            , 
-            //(Alliance.Red != Robot.alliance) ? 
-            () -> -driver.getRightX()*rotationFactor
-             //: () -> (-driver.getRightX() + Math.PI) * rotationFactor
-        );
+        // === STICKS ===
+
+        // Left Stick X: Drive 
+            // Used in manual drive command
+            
+        // Left Stick Y: (Drive Forward/Back)
+            // Used in manual drive command
+
+        // Left Stick Click (L3): 
+
+        // Right Stick X: (Steer/Turn)
+            // Used in manual drive command
+
+        // Right Stick Y: 
+
+        // Right Stick Click (R3): 
+
+        // === BUMPERS & TRIGGERS ===
+
+
+        // Left Bumper: Prepare Cross Bump
+        driver.leftBumper() // Driver - Turn 45 degrees
+            .and(() -> !driverShiftKey)
+            .whileTrue(subsystemCommands.turn45());
+
+        driver.leftBumper() // Operator - Aim and Preshoot
+            .and(() -> driverShiftKey)
+            .whileTrue(subsystemCommands.preshootAndAimHub());
         
+        // Right Bumper: Fuel Mode (faces forward)
+        driver.rightBumper() // Driver - Face forward
+            .and(() -> !driverShiftKey)
+            .whileTrue(subsystemCommands.faceForward());
 
-        if(isInCenter)
-        {
-            driver.y().whileTrue(subsystemCommands.testAimRightCorner());
-            driver.a().whileTrue(subsystemCommands.testAimLeftCorner());
-        }
+        driver.rightBumper() // Operator - Fires without aiming
+            .and(() -> driverShiftKey)
+            .whileTrue(subsystemCommands.agitate());
 
+        // Left Trigger: Precision
+        driver.leftTrigger() // Driver - Slow translation
+            .and(()-> !driverShiftKey)
+            .whileTrue(subsystemCommands.slowDrive());
         
+        driver.leftTrigger() // Operator - Intake
+            .and(()-> driverShiftKey)
+            .toggleOnTrue(subsystemCommands.intake());
+       
+        // Right Trigger: Slow Swerve
+        driver.rightTrigger() // Driver - Slow rotation
+            .and(()-> !driverShiftKey)
+            .whileTrue(subsystemCommands.slowRotation());
 
+        driver.rightTrigger() // Operator - Automated Fire
+            .and(()-> driverShiftKey)
+            .whileTrue(subsystemCommands.automatedFire());
 
-       // Commands.runOnce(() -> swerve.SetControl())
-        swerve.setDefaultCommand(manualDriveCommand);
-       driver.leftBumper().whileTrue(Commands.run(() -> manualDriveCommand.setLockedHeading(Rotation2d.kCW_90deg.div(2))));
-       driver.b().whileTrue(Commands.run(() -> manualDriveCommand.setLockedHeading(Rotation2d.kCCW_90deg.div(2))));
-        // driver.povUp().onTrue(Commands.runOnce(() -> manualDriveCommand.setLockedHeading(Rotation2d.k180deg)));
-        // driver.povRight().onTrue(Commands.runOnce(() -> manualDriveCommand.setLockedHeading(Rotation2d.kCW_90deg)));
-        // driver.povLeft().onTrue(Commands.runOnce(()-> manualDriveCommand.setLockedHeading(Rotation2d.kCCW_90deg)));
-        // driver.povDown().onTrue(Commands.runOnce(() -> manualDriveCommand.setLockedHeading(Rotation2d.kZero)));
+        // === FACE BUTTONS ===
 
-         driver.x().onTrue(Commands.runOnce(() -> manualDriveCommand.seedFieldCentric()));
-        driver.leftTrigger()
-            .whileTrue(Commands.runOnce(() -> restrictSpeed())).whileFalse(Commands.runOnce(() -> unrestrictSpeed()));
-        driver.rightTrigger()
-            .whileTrue(Commands.runOnce(() -> restrictRotation())).whileFalse(Commands.runOnce(() -> unrestrictRotation()));
-        operator.rightTrigger().whileTrue(subsystemCommands.preShootCommand());
-        operator.rightBumper().whileTrue(subsystemCommands.feedShootCommand());
-        if(Robot.alliance != null)
-            driver.rightBumper().whileTrue(subsystemCommands.testAim());
-        operator.leftBumper().whileTrue(intake.intakeCommand()).whileFalse(intake.stopRollers());
+        // Button A: (Operator Only) Reset Aim Offset
+        driver.a() // Operator - Reset aim offset
+            .and(() -> driverShiftKey)
+            .whileTrue(subsystemCommands.resetAimOffset());  
+        
+        // Button B: (Operator Only) Outtake
+        driver.b() // Operator - Outtake
+            .and(() -> driverShiftKey)
+            .whileTrue(subsystemCommands.outtake());
 
-        //driver.povUp().onTrue(updateVisionCommand());
-            //.onFalse(Commands.runOnce(() -> unrestrictSpeed()));
+        // Button X: Zero Pose
+        driver.x() // Driver - Zero pose
+            .and(() -> !driverShiftKey)
+            .onTrue(subsystemCommands.zeroPose());
+
+        driver.x() // Operator - Zero Intake
+            .and(() -> driverShiftKey)
+            .onTrue(subsystemCommands.zeroIntakeDown());
+        
+        // Button Y: Controller Toggle (One Controller Mode)
+        driver.y()
+            .and(()->controllerSetting == ControllerSetting.ONE)
+            .toggleOnTrue(
+                Commands.runEnd(
+                    () -> {driverShiftKey = true; driverShiftKeyLogger.set(true);},
+                    () -> {driverShiftKey = false; driverShiftKeyLogger.set(false);}
+                )
+            );
+
+        // === DPAD (POV) ===
+
+        // DPAD Up: intake up / nearest bump
+        driver.povUp() // Driver - Nearest bump
+            .and(() -> !driverShiftKey)
+            .whileTrue(subsystemCommands.toBump());
+
+        driver.povUp()  // Operator - Intake in
+            .and(() -> driverShiftKey)
+            .whileTrue(subsystemCommands.intakeIn());
+
+        // DPAD Down: 
+        driver.povDown() // Operator - Intake out
+            .and(() -> driverShiftKey)
+            .whileTrue(subsystemCommands.intakeOut());
+        
+        // DPAD Left: Bump path left
+        driver.povLeft() // Driver - Nearest left bump
+            .and(() -> !driverShiftKey)
+            .whileTrue(subsystemCommands.toBump(true));
+        
+        driver.povLeft() // Operator - Intake in manual
+            .and(() -> driverShiftKey)
+            .whileTrue(subsystemCommands.intakeInManual());
+        
+        // DPAD Right: Bump path right
+        driver.povRight() // Driver - Nearest right bump
+            .and(() -> !driverShiftKey)
+            .whileTrue(subsystemCommands.toBump(false));
+
+        driver.povRight() // Operator - Intake out manual
+            .and(() -> driverShiftKey)
+            .whileTrue(subsystemCommands.intakeOutManual());
+        
+        // Start / Menu (right) and Back / View (left)
+        driver.start() // Operator - Reset Robot
+            .and(() -> driverShiftKey)
+            .and(driver.back())
+            .and(() -> driverShiftKey)
+            .onTrue(subsystemCommands.resetRobot());
     }
 
-    // private Command updateVisionCommand() {
-    //     return limelight.run(() -> {
-    //         final Pose2d currentRobotPose = swerve.getState().Pose;
-    //         final Optional<Limelight.Measurement> measurement = limelight.getMeasurement(currentRobotPose);
-    //         measurement.ifPresent(m -> {
-    //             swerve.addVisionMeasurement(
-    //                 m.poseEstimate.pose, 
-    //                 m.poseEstimate.timestampSeconds,
-    //                 m.standardDeviations
-    //             );
-    //         });
-    //     })
-    //     .ignoringDisable(true);
-    // }
     public static boolean hasSeededPose = false;
     final double maxDistanceChange = 0.2;
     public static boolean hasEnabled = false;
-   // public static int count = 0;
-   // int waitCounts = 100;
+    public static double scale = 0.5;
+    
     private Command updateVisionCommand() {
-       
         return limelight.run(() -> {
             final Pose2d currentRobotPose = swerve.getState().Pose;
             final Optional<Limelight.Measurement> measurement = limelight.getMeasurement(currentRobotPose);
-            //if(button.onTrue(System.out.println(measurement)))
-            // measurement.ifPresent(m -> {
-            //     swerve.addVisionMeasurement(
-            //         m.poseEstimate.pose, 
-            //         m.poseEstimate.timestampSeconds,
-            //         m.standardDeviations
-            //     );
-           // System.out.println(measurement);
            
             measurement.ifPresent(m -> {
-                
-                if (!hasSeededPose && InBoundsCheck(m.poseEstimate.pose)){ //&& InBoundsCheck(m.poseEstimate.pose)) {
-                // if (count < waitCounts) {
+                if(DriverStation.isDisabled())
+                {
                     //TODO: Check if this also works for the red side
-                    swerve.resetPose(m.poseEstimate.pose);
-                    if (Robot.alliance == Alliance.Red) {
-                        swerve.resetRotation(Rotation2d.fromDegrees(180));
-                    } else {
-                        swerve.resetRotation(Rotation2d.fromDegrees(0));
-                    }
-                 //  swerve.seedFieldCentric(m.poseEstimate.pose.getRotation());
+                    Rotation2d rotation = (DriverStation.getAlliance().get() == Alliance.Red) ? new Rotation2d(180) : new Rotation2d(0);
+                    Pose2d driverPose = new Pose2d(m.poseEstimate.pose.getTranslation(), rotation);
+                    swerve.resetPose(driverPose);
+                    swerve.seedFieldCentric(m.poseEstimate.pose.getRotation());
                     hasSeededPose = true;
-                  //  System.out.println("SEEDED FIELD POSE");
-            }
-
-               double distance = m.poseEstimate.pose.getTranslation().getDistance(swerve.getState().Pose.getTranslation());
-
-                if //(distance < maxDistanceChange && 
-                    (InBoundsCheck(m.poseEstimate.pose)) {
+                }  
+                
+                if (InBoundsCheck(m.poseEstimate.pose)) {
+                    Vector<N3> std = VecBuilder.fill(m.standardDeviations.get(0, 0) * scale, m.standardDeviations.get(1, 0) * scale, m.standardDeviations.get(2, 0) * scale);
                     swerve.addVisionMeasurement(
-                        m.poseEstimate.pose, 
+                        m.poseEstimate.pose,
                         m.poseEstimate.timestampSeconds,
-                        m.standardDeviations
+                        std 
                     );
                 }
-               // }
-                // swerve.resetRotation(m.poseEstimate.pose.getRotation());
             });
-                
-            // });
-           // swerve.resetPose(new Pose2d(Units.inchesToMeters(50), Units.inchesToMeters(50), Rotation2d.fromDegrees(180)));
-            // measurement.ifPresent(m -> {
-            //     swerve.resetPose(m.poseEstimate.pose);
-            // });
         })
         .ignoringDisable(true);
     }
@@ -533,57 +640,18 @@ public class RobotContainer {
 
     public boolean InBoundsCheck(Pose2d visionPose)
     {
-        double fieldLength = Constants.FieldConstants.FIELD_WIDTH.in(Meter); 
-        double fieldWidth = Constants.FieldConstants.FIELD_HEIGHT.in(Meter); 
+        if (visionPose == null
+            || !Double.isFinite(visionPose.getX())
+            || !Double.isFinite(visionPose.getY())
+            || !Double.isFinite(visionPose.getRotation().getRadians())) {
+            return false;
+        }
+        double fieldLength = Constants.FieldConstants.FIELD_X_LENGTH.in(Meter); 
+        double fieldWidth = Constants.FieldConstants.FIELD_Y_LENGTH.in(Meter); 
         if (visionPose.getX() < 0 || visionPose.getX() > fieldLength || visionPose.getY() < 0 || visionPose.getY() > fieldWidth) 
         { 
             return false;
         }
         return true;
     }
-    private final float maxError = 0.1f;
-    
-    // private Command slowUpdateVisionCommand() {
-    //     return limelight.run(() -> {
-    //         final Pose2d currentRobotPose = swerve.getState().Pose;
-    //         final Optional<Limelight.Measurement> measurement = limelight.getMeasurement(currentRobotPose);
-    //         //if(button.onTrue(System.out.println(measurement)))
-    //         // measurement.ifPresent(m -> {
-    //         //     swerve.addVisionMeasurement(
-    //         //         m.poseEstimate.pose, 
-    //         //         m.poseEstimate.timestampSeconds,
-    //         //         m.standardDeviations
-    //         //     );
-    //        // System.out.println(measurement);
-    //         measurement.ifPresent(m -> {
-    //             if (!hasSeededPose) {
-    //                 swerve.resetPose(m.poseEstimate.pose);
-    //                 hasSeededPose = true;
-    //               //  System.out.println("SEEDED FIELD POSE");
-    //             }
-    //             //System.out.println(m.poseEstimate.pose);
-                
-    //             // Translation2d distance = lastPose.getTranslation().minus(m.poseEstimate.pose.getTranslation());//- m.poseEstimate.pose.getTranslation().getX();
-    //             // if(Math.abs(distance.getX()) > maxError || Math.abs(distance.getY()) > maxError)
-    //             // {
-    //             SmartDashboard.getNumber("Current Robot Pose Y", swerve.getState().Pose.getY());
-    //             SmartDashboard.getNumber("Current Robot Pose X", swerve.getState().Pose.getX());
-    //                 swerve.addVisionMeasurement(
-    //                     m.poseEstimate.pose, 
-    //                     m.poseEstimate.timestampSeconds,
-    //                     m.standardDeviations
-    //                 );
-    //                 lastPose = m.poseEstimate.pose;
-    //             //}
-    //             // swerve.resetRotation(m.poseEstimate.pose.getRotation());
-    //         });
-                
-    //         // });
-    //        // swerve.resetPose(new Pose2d(Units.inchesToMeters(50), Units.inchesToMeters(50), Rotation2d.fromDegrees(180)));
-    //         // measurement.ifPresent(m -> {
-    //         //     swerve.resetPose(m.poseEstimate.pose);
-    //         // });
-    //     })
-    //     .ignoringDisable(true);
-    // }
 }

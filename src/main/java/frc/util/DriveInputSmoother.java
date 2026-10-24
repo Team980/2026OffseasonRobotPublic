@@ -9,9 +9,11 @@ import edu.wpi.first.math.numbers.N2;
 import frc.robot.RobotContainer;
 
 public class DriveInputSmoother {
-    //0.1
-    public static double joystickDeadband = 0.1*RobotContainer.speedFactor;
-    private static final double kCurveExponent = 1.5;
+    public static final double joystickDeadband = 0.2;
+    public static double translationJoystickDeadband = joystickDeadband;
+    public static double rotationJoystickDeadband = joystickDeadband;
+    private static final double kTranslationCurveExponent = 1.5;
+    private static final double kRotationCurveExponent = 1.5;
 
     private final DoubleSupplier forwardInput;
     private final DoubleSupplier leftInput;
@@ -23,19 +25,15 @@ public class DriveInputSmoother {
         this.rotationInput = rotationInput;
     }
 
-    public DriveInputSmoother(DoubleSupplier forwardInput, DoubleSupplier leftInput) {
-        this(forwardInput, leftInput, () -> 0);
-    }
-
     public ManualDriveInput getSmoothedInput() { 
         final Vector<N2> rawTranslationInput = VecBuilder.fill(forwardInput.getAsDouble(), leftInput.getAsDouble());
-        final Vector<N2> deadbandedTranslationInput = MathUtil.applyDeadband(rawTranslationInput, joystickDeadband);
-        final Vector<N2> curvedTranslationInput = MathUtil.copyDirectionPow(deadbandedTranslationInput, kCurveExponent);
+        final Vector<N2> deadbandedTranslationInput = MathUtil.applyDeadband(rawTranslationInput, translationJoystickDeadband);
+        final Vector<N2> curvedTranslationInput = MathUtil.copyDirectionPow(deadbandedTranslationInput, kTranslationCurveExponent);
+        
 
         final double rawRotationInput = rotationInput.getAsDouble();
-        final double deadbandedRotationInput = MathUtil.applyDeadband(rawRotationInput, joystickDeadband);
-        final double curvedRotationInput = MathUtil.copyDirectionPow(deadbandedRotationInput, kCurveExponent);
-
+        final double deadbandedRotationInput = MathUtil.applyDeadband(rawRotationInput, rotationJoystickDeadband);
+        final double curvedRotationInput = MathUtil.copyDirectionPow(deadbandedRotationInput, kRotationCurveExponent);
         return new ManualDriveInput(
             curvedTranslationInput.get(0), 
             curvedTranslationInput.get(1), 

@@ -32,7 +32,7 @@ public class SwerveTelemetry {
 
         /* Set up the module state Mechanism2d telemetry */
         for (int i = 0; i < 4; ++i) {
-            SmartDashboard.putData("Module " + i, m_moduleMechanisms[i]);
+            //Smartdashboard.putData("Module " + i, m_moduleMechanisms[i]);
         }
     }
 
@@ -82,7 +82,7 @@ public class SwerveTelemetry {
 
     private final double[] m_poseArray = new double[3];
 
-    /** Accept the swerve drive state and telemeterize it to SmartDashboard and SignalLogger. */
+    /** Accept the swerve drive state and publish the high-rate drive state values. */
     public void telemeterize(SwerveDriveState state) {
         /* Telemeterize the swerve drive state */
         drivePose.set(state.Pose);
@@ -92,6 +92,10 @@ public class SwerveTelemetry {
         driveModulePositions.set(state.ModulePositions);
         driveTimestamp.set(state.Timestamp);
         driveOdometryFrequency.set(1.0 / state.OdometryPeriod);
+    }
+
+    /** Update the field and module displays from a state copied on the robot thread. */
+    public void updateMechanismTelemetry(SwerveDriveState state) {
 
         /* Telemeterize the pose to a Field2d */
         fieldTypePub.set("Field2d");

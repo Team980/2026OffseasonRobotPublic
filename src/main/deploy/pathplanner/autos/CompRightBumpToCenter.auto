@@ -9,22 +9,9 @@
           "data": {
             "commands": [
               {
-                "type": "wait",
+                "type": "path",
                 "data": {
-                  "waitTime": 0.5
-                }
-              },
-              {
-                "type": "sequential",
-                "data": {
-                  "commands": [
-                    {
-                      "type": "named",
-                      "data": {
-                        "name": "DeployIntake"
-                      }
-                    }
-                  ]
+                  "pathName": "COMPRightBumpToCenter.0"
                 }
               }
             ]
@@ -35,15 +22,15 @@
           "data": {
             "commands": [
               {
-                "type": "path",
+                "type": "wait",
                 "data": {
-                  "pathName": "ToDepot"
+                  "waitTime": 0.5
                 }
               },
               {
                 "type": "named",
                 "data": {
-                  "name": "StartIntake"
+                  "name": "IntakeOut"
                 }
               }
             ]
@@ -56,45 +43,13 @@
               {
                 "type": "path",
                 "data": {
-                  "pathName": "DepotIntaking"
-                }
-              }
-            ]
-          }
-        },
-        {
-          "type": "named",
-          "data": {
-            "name": "StopIntake"
-          }
-        },
-        {
-          "type": "parallel",
-          "data": {
-            "commands": [
-              {
-                "type": "path",
-                "data": {
-                  "pathName": "DepotTurn"
-                }
-              }
-            ]
-          }
-        },
-        {
-          "type": "deadline",
-          "data": {
-            "commands": [
-              {
-                "type": "wait",
-                "data": {
-                  "waitTime": 1.0
+                  "pathName": "COMPRightBumpToCenter.1"
                 }
               },
               {
                 "type": "named",
                 "data": {
-                  "name": "AimToHub"
+                  "name": "Intake"
                 }
               }
             ]
@@ -105,9 +60,9 @@
           "data": {
             "commands": [
               {
-                "type": "wait",
+                "type": "path",
                 "data": {
-                  "waitTime": 8.0
+                  "pathName": "COMPRightBumpToCenter.2"
                 }
               },
               {
@@ -115,34 +70,28 @@
                 "data": {
                   "name": "PreShoot"
                 }
+              }
+            ]
+          }
+        },
+        {
+          "type": "deadline",
+          "data": {
+            "commands": [
+              {
+                "type": "wait",
+                "data": {
+                  "waitTime": 5.0
+                }
               },
               {
-                "type": "sequential",
+                "type": "parallel",
                 "data": {
                   "commands": [
                     {
-                      "type": "wait",
+                      "type": "named",
                       "data": {
-                        "waitTime": 3.5
-                      }
-                    },
-                    {
-                      "type": "parallel",
-                      "data": {
-                        "commands": [
-                          {
-                            "type": "named",
-                            "data": {
-                              "name": "Shoot"
-                            }
-                          },
-                          {
-                            "type": "named",
-                            "data": {
-                              "name": "Agitate"
-                            }
-                          }
-                        ]
+                        "name": "AutomatedFire"
                       }
                     }
                   ]
@@ -152,27 +101,73 @@
           }
         },
         {
-          "type": "named",
-          "data": {
-            "name": "StopShooter"
-          }
-        },
-        {
           "type": "path",
           "data": {
-            "pathName": "DepotToTower"
+            "pathName": "COMPRightBumpToCenter.3"
           }
         },
         {
-          "type": "wait",
+          "type": "deadline",
           "data": {
-            "waitTime": 1.0
+            "commands": [
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "COMPRightBumpToCenter.4"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "Intake"
+                }
+              }
+            ]
           }
         },
         {
-          "type": "named",
+          "type": "deadline",
           "data": {
-            "name": "Tower"
+            "commands": [
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "COMPRightBumpToCenter.5"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "PreShoot"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "deadline",
+          "data": {
+            "commands": [
+              {
+                "type": "wait",
+                "data": {
+                  "waitTime": 5.0
+                }
+              },
+              {
+                "type": "parallel",
+                "data": {
+                  "commands": [
+                    {
+                      "type": "named",
+                      "data": {
+                        "name": "AutomatedFire"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
           }
         }
       ]

@@ -25,10 +25,11 @@ import frc.robot.Robot;
 public class Hood extends SubsystemBase {
     private static final Distance kServoLength = Millimeters.of(100);
     private static final LinearVelocity kMaxServoSpeed = Millimeters.of(20/2).per(Second);//TODO: Multiply by 2
-    private static final double kMinPosition = 0.01;
-    private static final double kMaxPosition = 0.77;
+    public static final double kMinPosition = 0.01;
+    public static final double kMaxPosition = 0.77;
     private static final double kPositionTolerance = 0.01;
     private static  double kStepSize = 0.02;
+    public static boolean withinTolerance = false;
 
     private final Servo leftServo;
     private final Servo rightServo;
@@ -36,7 +37,7 @@ public class Hood extends SubsystemBase {
     // private final LinearServo leftLinearServo;
     // private final LinearServo rightLinearServo;
 
-    private double currentPosition = 0.5;
+    public double currentPosition = 0.5;
     private double targetPosition = 0.5;
     private double speed = 1.0;
     private Time lastUpdateTime = Seconds.of(0);
@@ -55,8 +56,8 @@ public class Hood extends SubsystemBase {
         // leftLinearServo.setBoundsMicroseconds(2000, 1800, 1500, 1200, 1000);
         // rightLinearServo.setBoundsMicroseconds(2000, 1800, 1500, 1200, 1000);
         setPosition(currentPosition);
-        SmartDashboard.putData(this);
-        SmartDashboard.putNumber("FPGA Timestamp", Timer.getFPGATimestamp());
+        ////Smartdashboard.putData(this);
+        ////Smartdashboard.putNumber("FPGA Timestamp", Timer.getFPGATimestamp());
         //test later to make sure whether this is needed
         //lastUpdateTime = Seconds.of(Timer.getFPGATimestamp());
     }
@@ -70,8 +71,6 @@ public class Hood extends SubsystemBase {
         // rightServo.setPosition(clampedPosition);
       
         targetPosition = clampedPosition;
-        
-       
     }
 
     // public void setPosition(double position)
@@ -138,6 +137,9 @@ public class Hood extends SubsystemBase {
     }
 
     public boolean isPositionWithinTolerance() {
+        ////Smartdashboard.putNumber("Hood current", currentPosition);
+        ////Smartdashboard.putNumber("Hood target", targetPosition);
+
         return MathUtil.isNear(targetPosition, currentPosition, kPositionTolerance);
     }
 
@@ -160,21 +162,8 @@ public class Hood extends SubsystemBase {
 
     @Override
     public void periodic() {
-      updateCurrentPosition();
-    // //    leftLinearServo.updateCurPos();
-    // //    rightLinearServo.updateCurPos();
-    //     // leftServo.setPosition(0.5);
-    //     // rightServo.setPosition(0.5);
-    //     // if(buttonPressed)
-    //     // {
-    //         leftServo.setPosition(0.6);
-    //         rightServo.setPosition(0.6);
-    //         //leftServo.set(0.6);
-    //     // }
-    //     // leftServo.setSpeed(-0.05);
-    //     // rightServo.setSpeed(-0.05);
-   //     System.out.println(leftServo.getPosition());
-        
+        updateCurrentPosition();
+        Hood.withinTolerance = isPositionWithinTolerance();
     }
 
     @Override

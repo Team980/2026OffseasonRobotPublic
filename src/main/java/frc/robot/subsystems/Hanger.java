@@ -161,7 +161,7 @@ public class Hanger extends SubsystemBase {
             );
 
         motor.getConfigurator().apply(config);
-        SmartDashboard.putData(this);
+        //Smartdashboard.putData(this);
     }
 
       //check when less than 0.5 when starts

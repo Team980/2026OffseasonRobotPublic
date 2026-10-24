@@ -2,9 +2,9 @@ package frc.robot.subsystems;
 
 import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.Volts;
+import static edu.wpi.first.units.Units.Seconds;
 
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.lang.annotation.Target;
 import java.util.function.Supplier;
 
 import com.ctre.phoenix6.SignalLogger;
@@ -33,34 +33,48 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.Kinematics;
-import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
-import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Alert;
+import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.Constants;
+import frc.robot.FieldTelemetry;
 import frc.robot.Landmark;
 //import frc.robot.Landmarks;
 import frc.robot.LimelightHelpers;
 import frc.robot.Robot;
+import frc.robot.commands.AimAndDriveCommand;
 import frc.robot.generated.TunerConstants;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
-import frc.robot.subsystems.GyroIO.GyroIOInputs;
+import frc.util.TargetUtil;
 
 import org.littletonrobotics.junction.Logger;
 
 public class Swerve extends TunerSwerveDrivetrain implements Subsystem 
 {
-    public static double currentTargetID;
-    static final Lock odometryLock = new ReentrantLock();
+    // private Pose2d[] updatePose2ds = {
+    //     getState().Pose,
+    //     getState().Pose
+    // };
+    // private final Time toleranceTime = Seconds.of(0.1);
+    // private double timeCheckpoint = Timer.getFPGATimestamp();
+    // private double vxMetersPerSecondFieldRelative = 0;
+    // private double vyMetersPerSecondFieldRelative = 0;
+    // private double omegaRadiansPerSecondFieldRelative = 0;
+
     //private static double target = 26; used when we were testing limelight targeting 
     /* Blue alliance sees forward as 0 degrees (toward red alliance wall) */
     private static final Rotation2d kBlueAlliancePerspectiveRotation = Rotation2d.kZero;
@@ -68,6 +82,11 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem
     private static final Rotation2d kRedAlliancePerspectiveRotation = Rotation2d.k180deg;
     /* Keep track if we've ever applied the operator perspective before or not */
     private boolean m_hasAppliedOperatorPerspective = false;
+
+    public final Supplier<Pose2d> poseSupplier = () -> this.getState().Pose;
+
+    public boolean isAiming = false;
+
     
 
     /** Swerve request to apply during field-centric path following */
@@ -78,28 +97,22 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem
     private final PIDController pathThetaController = new PIDController(7, 0, 0);
     private static double maxAccelaration = 1;
     MotionMagicConfigs magicConfigs = new MotionMagicConfigs();
-    private final TrapezoidProfile trapezoidProfile = new TrapezoidProfile(
-        new TrapezoidProfile.Constraints(TunerConstants.kSpeedAt12Volts.baseUnitMagnitude(), maxAccelaration));
-    
-    // private final PIDController pathXController = new PIDController(0, 0, 0);
-    // private final PIDController pathYController = new PIDController(0, 0, 0);
-    // private final PIDController pathThetaController = new PIDController(0, 0, 0);
     private static final double ROBOT_MASS_KG = Units.lbsToKilograms(115);
     private static final double ROBOT_MOI = 6;
     private static final double WHEEL_COF = 1.2;
     private static final RobotConfig PP_CONFIG =
-      new RobotConfig(
-          ROBOT_MASS_KG,
-          ROBOT_MOI,
-          new ModuleConfig(
-              TunerConstants.FrontLeft.WheelRadius,
-              TunerConstants.kSpeedAt12Volts.in(MetersPerSecond),
-              WHEEL_COF,
-              DCMotor.getKrakenX60Foc(1)
-                  .withReduction(TunerConstants.FrontLeft.DriveMotorGearRatio),
-              TunerConstants.FrontLeft.SlipCurrent,
-              1),
-          getModuleTranslations());
+    new RobotConfig(
+        ROBOT_MASS_KG,
+        ROBOT_MOI,
+        new ModuleConfig(
+            TunerConstants.FrontLeft.WheelRadius,
+            TunerConstants.kSpeedAt12Volts.in(MetersPerSecond),
+            WHEEL_COF,
+            DCMotor.getKrakenX60Foc(1)
+                .withReduction(TunerConstants.FrontLeft.DriveMotorGearRatio),
+            TunerConstants.FrontLeft.SlipCurrent,
+            1),
+        getModuleTranslations());
 
     public static Translation2d[] getModuleTranslations() {
         return new Translation2d[] {
@@ -110,23 +123,11 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem
         };
     }
 
-    private final Module[] modules = new Module[4];
-    private final GyroIO gyroIO;
-    private final GyroIOInputsAutoLogged gyroInputs = new GyroIOInputsAutoLogged();
-    private Rotation2d rawGyroRotation = new Rotation2d();
-    private SwerveDriveKinematics kinematics = new SwerveDriveKinematics(getModuleTranslations());
+    private final Alert odometryInvalidAlert =
+        new Alert("Swerve odometry is invalid. Check drivetrain device connections.", AlertType.kError);
 
-    private SwerveModulePosition[] lastModulePositions = // For delta tracking
-      new SwerveModulePosition[] {
-        new SwerveModulePosition(),
-        new SwerveModulePosition(),
-        new SwerveModulePosition(),
-        new SwerveModulePosition()
-      };
-    public Swerve(GyroIO gyroIO, ModuleIO flModuleIO,
-      ModuleIO frModuleIO,
-      ModuleIO blModuleIO,
-      ModuleIO brModuleIO) {
+    /** CTRE owns all drivetrain hardware, pose estimation, and the odometry thread. */
+    public Swerve() {
         super(
             TunerConstants.DrivetrainConstants, 
             0,
@@ -137,12 +138,7 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem
             TunerConstants.BackLeft, 
             TunerConstants.BackRight
         );
-        this.gyroIO = gyroIO;
-        modules[0] = new Module(flModuleIO, 0, TunerConstants.FrontLeft);
-        modules[1] = new Module(frModuleIO, 1, TunerConstants.FrontRight);
-        modules[2] = new Module(blModuleIO, 2, TunerConstants.BackLeft);
-        modules[3] = new Module(brModuleIO, 3, TunerConstants.BackRight);
-        PhoenixOdometryThread.getInstance().start();
+        register();
       //  driveMotor.getConfigurator().apply(config);
         // RobotConfig config;
         //  try{ 
@@ -159,14 +155,13 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem
             () -> getChassisSpeeds(), // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE 
             (speeds, feedforwards) -> drive(speeds), // Method that will drive the robot given ROBOT RELATIVE ChassisSpeeds. Also optionally outputs individual module feedforwards 
             new PPHolonomicDriveController( // PPHolonomicController is the built in path following controller for holonomic drive trains 
-            new PIDConstants(1, 0.0, 0.00), // Translation PID constants 
-            new PIDConstants(1, 0.0, 0.000)  /*new PIDConstants(5.0, 0.0, 0.0), // Translation PID constants 
+            new PIDConstants(2, 0.0, 0.005), // Translation PID constants 
+            new PIDConstants(3, 0.0, 0.005)  /*new PIDConstants(5.0, 0.0, 0.0), // Translation PID constants 
             new PIDConstants(5.0, 0.0, 0.0)*/
             ), // Rotation PID constants
             PP_CONFIG, // The robot configuration 
-            () -> { // Boolean supplier that controls when the path will be mirrored for the red alliance // This will flip the path being followed to the red side of the field. // THE ORIGIN WILL REMAIN ON THE BLUE SIDE 
-                return Robot.alliance== Alliance.Red;
-            },
+            // Resolve at command initialization; the existing supplier defaults missing data to Blue.
+            () -> Constants.alliance.get() == Alliance.Red,
             this);
         pathThetaController.enableContinuousInput(-Math.PI, Math.PI);
         // Reference to this subsystem to set requirements );
@@ -175,6 +170,13 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem
     public ChassisSpeeds getChassisSpeeds() {
         return getState().Speeds; 
     } 
+
+    public ChassisSpeeds getRobotRelativeSpeeds() {
+        return ChassisSpeeds.fromRobotRelativeSpeeds(
+            getState().Speeds,
+            getState().Pose.getRotation()
+        );
+    }
 
     private void drive(ChassisSpeeds speeds) {
         setControl(
@@ -286,48 +288,38 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem
     @Override
     public void periodic() 
     {
-        odometryLock.lock();
-        gyroIO.updateInputs(gyroInputs);
-        Logger.processInputs("Drive/Gyro", gyroInputs);
-        Logger.recordOutput("poseTest", this.getState().Pose);
-        for (var module : modules) {
-            module.periodic();
-        }
-        odometryLock.unlock();
+        //Smartdashboard.putBoolean("IsAiming", TargetUtil.isAiming(this));
+        // double currentTime = Timer.getFPGATimestamp();
+        // double dt = currentTime - timeCheckpoint;
 
-        double[] sampleTimestamps =
-        modules[0].getOdometryTimestamps(); // All signals are sampled together
-        int sampleCount = sampleTimestamps.length;
-        for (int i = 0; i < sampleCount; i++) {
-            // Read wheel positions and deltas from each module
-            SwerveModulePosition[] modulePositions = new SwerveModulePosition[4];
-            SwerveModulePosition[] moduleDeltas = new SwerveModulePosition[4];
-            for (int moduleIndex = 0; moduleIndex < 4; moduleIndex++) {
-                modulePositions[moduleIndex] = modules[moduleIndex].getOdometryPositions()[i];
-                moduleDeltas[moduleIndex] =
-                    new SwerveModulePosition(
-                        modulePositions[moduleIndex].distanceMeters
-                            - lastModulePositions[moduleIndex].distanceMeters,
-                        modulePositions[moduleIndex].angle);
-                lastModulePositions[moduleIndex] = modulePositions[moduleIndex];
-            }
+        // if (dt >= toleranceTime.in(Seconds)){
+        //     updatePose2ds[0] = updatePose2ds[1];
+        //     updatePose2ds[1] = getState().Pose;
+        //     timeCheckpoint = currentTime;
+        //     vxMetersPerSecondFieldRelative = (updatePose2ds[1].getX()-updatePose2ds[0].getX())/dt;
+        //     vyMetersPerSecondFieldRelative = (updatePose2ds[1].getY()-updatePose2ds[0].getY())/dt;
+        //     omegaRadiansPerSecondFieldRelative = (updatePose2ds[0].getRotation().minus(updatePose2ds[0].getRotation())).getRadians()/dt;
+        // }
 
-        // Update gyro angle
-            if (gyroInputs.connected) {
-                // Use the real gyro angle
-                rawGyroRotation = gyroInputs.odometryYawPositions[i];
-            } else {
-                // Use the angle delta from the kinematics and module deltas
-                rawGyroRotation =
-                    rawGyroRotation.plus(new Rotation2d(kinematics.toTwist2d(moduleDeltas).dtheta));
-            }
-            // this.simulationPeriodic();
-            // this.updateSimState(sampleTimestamps[i], RobotController.getBatteryVoltage());
-        
-        }
+        // Log a snapshot from CTRE's estimator instead of sampling a second hardware stack.
+        SwerveDriveState state = getState();
+        boolean odometryValid = isOdometryValid();
+        Logger.recordOutput("robotPose", state.Pose);
+        Logger.recordOutput("Drive/Speeds", state.Speeds);
+        Logger.recordOutput("Drive/ModuleStates", state.ModuleStates);
+        Logger.recordOutput("Drive/ModuleTargets", state.ModuleTargets);
+        Logger.recordOutput("Drive/ModulePositions", state.ModulePositions);
+        Logger.recordOutput("Drive/RawHeading", state.RawHeading);
+        Logger.recordOutput("Drive/OdometryValid", odometryValid);
+        Logger.recordOutput("Drive/OdometryPeriod", state.OdometryPeriod);
+        Logger.recordOutput("Drive/SuccessfulDaqs", state.SuccessfulDaqs);
+        Logger.recordOutput("Drive/FailedDaqs", state.FailedDaqs);
+        odometryInvalidAlert.set(!odometryValid);
+        TargetUtil.logTarget(this);
+        //TargetUtil.logGhostBots();
+        FieldTelemetry.getInstance().updateRobotPose(state.Pose);
         
         // test tag
-        currentTargetID = LimelightHelpers.getFiducialID("limelight-pdp");
         // LimelightHelpers.SetRobotOrientation("limelight", yaw, 0.0, 0.0, 0.0, 0.0, 0.0);
         // var mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight");
         // if (mt2.tagCount > 0) {
@@ -354,8 +346,6 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem
                 m_hasAppliedOperatorPerspective = true;
             });
         }
-    
-
     }
 
     
@@ -407,4 +397,3 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem
 
     
 }
-

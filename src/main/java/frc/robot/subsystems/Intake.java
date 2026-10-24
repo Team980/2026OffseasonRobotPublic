@@ -3,6 +3,7 @@ package frc.robot.subsystems;
 import static edu.wpi.first.units.Units.Amps;
 import static edu.wpi.first.units.Units.Degrees;
 import static edu.wpi.first.units.Units.RPM;
+import static edu.wpi.first.units.Units.Rotations;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.Second;
 import static edu.wpi.first.units.Units.Volts;
@@ -31,6 +32,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Command.InterruptionBehavior;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.KrakenX60;
 import frc.robot.Ports;
@@ -63,9 +65,9 @@ public class Intake extends SubsystemBase {
         
         // STOWED(100), //-1, try -2
         // INTAKE(-4),
-        AGITATE(-53), //-10
+        AGITATE(-80),//-65),//-53), //-10
         ReadyToIntake(-108), // -110 if want (PREVIOUSY)
-        Start(- 3);//can be zero if wants
+        Start(-3);//can be zero if wants
 
 
         private final double degrees;
@@ -101,7 +103,7 @@ public class Intake extends SubsystemBase {
         rollerMotor = new TalonFX(Ports.kIntakeRollers, Ports.kRoboRioCANBus);
         configurePivotMotor();
         configureRollerMotor();
-        SmartDashboard.putData(this);
+        ////Smartdashboard.putData(this);
     }
     
     private double stallCounter = 0;
@@ -117,8 +119,8 @@ public class Intake extends SubsystemBase {
         double current = pivotMotor.getStatorCurrent().getValueAsDouble();
         double output = pivotMotor.getDutyCycle().getValueAsDouble();
 
-        SmartDashboard.putNumber("Collector Velocity", velocity);
-        SmartDashboard.putNumber("Collector Current", current);
+        //Smartdashboard.putNumber("Collector Velocity", velocity);
+        //Smartdashboard.putNumber("Collector Current", current);
 
         boolean tryingToMove = Math.abs(output) > 0.2;
         boolean lowVelocity = Math.abs(velocity) < 1;
@@ -132,7 +134,7 @@ public class Intake extends SubsystemBase {
 
         boolean stalled = stallCounter > 5;
 
-        SmartDashboard.putBoolean("Collector Stalled", stalled);
+        //Smartdashboard.putBoolean("Collector Stalled", stalled);
         
 
     }
@@ -159,13 +161,13 @@ public class Intake extends SubsystemBase {
                     .withSensorToMechanismRatio(kPivotReduction)
             )
             .withMotionMagic(
-                new MotionMagicConfigs()
-                    .withMotionMagicCruiseVelocity(kMaxPivotSpeed.div(4).times(3))//TODO: move back up
-                    .withMotionMagicAcceleration(kMaxPivotSpeed.per(Second).div(4).times(3))
+                new MotionMagicConfigs()//.div(4).times(3)
+                    .withMotionMagicCruiseVelocity(kMaxPivotSpeed)//TODO: move back up
+                    .withMotionMagicAcceleration(kMaxPivotSpeed.per(Second))
             )
             .withSlot0(
                 new Slot0Configs()
-                    .withKP(300)
+                    .withKP(100)//300)//250) //300
                     .withKI(0)
                     .withKD(0)
                     .withKV(12.0 / kMaxPivotSpeed.in(RotationsPerSecond)) // 12 volts when requesting max RPS
@@ -193,13 +195,13 @@ public class Intake extends SubsystemBase {
         rollerMotor.getConfigurator().apply(config);
     }
 
-    private boolean isPositionWithinTolerance() {
+    public boolean isPositionWithinTolerance() {
         final Angle currentPosition = pivotMotor.getPosition().getValue();
         final Angle targetPosition = pivotMotionMagicRequest.getPositionMeasure();
         return currentPosition.isNear(targetPosition, kPositionTolerance);
     }
 
-    private void setPivotPercentOutput(double percentOutput) {
+    public void setPivotPercentOutput(double percentOutput) {
         pivotMotor.setControl(
             pivotVoltageRequest
                 .withOutput(Volts.of(percentOutput * 12.0))
@@ -237,7 +239,7 @@ public class Intake extends SubsystemBase {
     
     
     public Command percentMoveCommand(double percentOutput) {
-        System.out.println(pivotMotor.getSupplyCurrent().getValue().in(Amps));
+        // System.out.println(pivotMotor.getSupplyCurrent().getValue().in(Amps));
         return startEnd(() ->
                  setPivotPercentOutput(percentOutput),
             () -> setPivotPercentOutput(0));
@@ -265,17 +267,19 @@ public class Intake extends SubsystemBase {
         return runOnce(() -> set(Speed.STOP.get()));
     }
 
-    public Command GoOut() {
-        return startEnd(
-            () -> {
-                set(Position.ReadyToIntake);
-            },
-            () -> set(Speed.STOP.get())
-        );
+    public Command goOut() {
+        return runOnce(() -> {
+            set(Speed.STOP.get());
+            set(Position.ReadyToIntake);
+        });
     }
 
     public void resetDeployEncoder(){
         pivotMotor.setPosition(0);
+    }
+
+    public void resetDeployEncoderDown(){ // TODO: NOT WORKING
+        pivotMotor.setPosition(Position.ReadyToIntake.angle().in(Rotations));
     }
 
     public void stopMotor()
@@ -283,14 +287,12 @@ public class Intake extends SubsystemBase {
         pivotMotor.stopMotor();
     }
 
-    public Command ReturnIn()
+    public Command returnIn()
     {
-       return startEnd(
-            () -> {
-                set(Position.Start);
-            },
-            () -> set(Speed.STOP.get())
-        );
+        return runOnce(() -> {
+            set(Speed.STOP.get());
+            set(Position.Start);
+        });
     }
     //Commands.Wait(seconds) if extended time
     public Command agitateCommand() {
@@ -335,5 +337,9 @@ public class Intake extends SubsystemBase {
         builder.addDoubleProperty("RPM", () -> rollerMotor.getVelocity().getValue().in(RPM), null);
         builder.addDoubleProperty("Pivot Supply Current", () -> pivotMotor.getSupplyCurrent().getValue().in(Amps), null);
         builder.addDoubleProperty("Roller Supply Current", () -> rollerMotor.getSupplyCurrent().getValue().in(Amps), null);
+        builder.addDoubleProperty("Roller Supply Current", () -> rollerMotor.getSupplyCurrent().getValue().in(Amps), null);
+        builder.addDoubleProperty("Pivot Stator Current", () -> pivotMotor.getStatorCurrent().getValue().in(Amps), null);
+        builder.addDoubleProperty("Roller Stator Current", () -> rollerMotor.getStatorCurrent().getValue().in(Amps), null);
+        builder.addDoubleProperty("TEST Test", () -> 0.31415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679, null);
     }
 }

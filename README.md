@@ -1,5 +1,29 @@
-# 2026CompetitiveConcept
+# 2026 Offseason Robot - Team 980 Thunderbots
 
-This repository contains the code used for the WestCoast Products 2026 [Competitive Concept](https://wcproducts.com/pages/wcp-competitive-concepts).
+This repository is a continuation of Team 980's [2026CompetitionRobot](https://github.com/Team980/2026CompetitionRobot) and is based on the WestCoast Products 2026 [Competitive Concept](https://wcproducts.com/pages/wcp-competitive-concepts).
 
-The project is based on one of CTRE's [Phoenix 6 example projects](https://github.com/CrossTheRoadElec/Phoenix6-Examples/tree/main/java/SwerveWithChoreo). It uses WPILib [command-based programming](https://docs.wpilib.org/en/stable/docs/software/commandbased/what-is-command-based.html) to manage robot subsystems and actions, a [Limelight](https://limelightvision.io/) for vision, and [Choreo](https://choreo.autos/) for autonomous path following.
+## Tech Stack
+
+### Languages
+- Java (WPILib command based programming)
+
+### Tools and Dependencies
+- Choreo
+- Pathplanner
+- Limelight Vision
+- Phoenix Tuner X
+
+### Hardware
+- **Vison:** Limelight 4
+- **IMU:** Pigeon 2
+- **Motors:** Kraken x60s and x44s
+- **Swerve Module:** WCP Swerve X2t
+- **Swerve Encoders** CTRE Cancoder
+
+## Code Review (Vibe Coding Stuff remove when publicizng)
+
+See [Code Review Tracker](CODE_REVIEW_TRACKER.md) for the original 21 audit
+findings, verified fixes, remaining evidence, and behavior decisions.
+
+See [Implementation Plan](IMPLEMENTATION_PLAN.md) for the ordered plan for the
+remaining confirmed fixes.
