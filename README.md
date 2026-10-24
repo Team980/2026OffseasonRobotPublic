@@ -17,7 +17,7 @@ This repository is a continuation of Team 980's [2026CompetitionRobot](https://g
 - **Vison:** Limelight 4
 - **IMU:** Pigeon 2
 - **Motors:** Kraken x60s and x44s
-- **Swerve Module:** WCP Swerve X2t
+- **Swerve Module:** WCP Swerve X2C X3
 - **Swerve Encoders** CTRE Cancoder
 
 ## Code Review (Vibe Coding Stuff remove when publicizng)
